@@ -51,5 +51,5 @@ export const DRIVERS = [
   { id: 'clark', name: 'Jim Clark', nat: 'British', first: 1960, wins: 25, titles: 2, team: 'Lotus' },
 ];
 
-// Nationalité (Jolpica, en anglais) -> code du pays (nom du pays dans la langue de la page, drapeau)
-export const NAT_ISO = { Argentine: 'ar', Australian: 'au', Austrian: 'at', Brazilian: 'br', British: 'gb', Canadian: 'ca', Dutch: 'nl', Finnish: 'fi', French: 'fr', German: 'de', Italian: 'it', Japanese: 'jp', Mexican: 'mx', Monegasque: 'mc', 'New Zealander': 'nz', Spanish: 'es', Thai: 'th' };
+// Nationalité (Jolpica, en anglais) des pilotes et des écuries -> code du pays (nom du pays dans la langue de la page, drapeau)
+export const NAT_ISO = { Argentine: 'ar', Australian: 'au', Austrian: 'at', Brazilian: 'br', British: 'gb', Canadian: 'ca', Dutch: 'nl', Finnish: 'fi', French: 'fr', German: 'de', Italian: 'it', Japanese: 'jp', Mexican: 'mx', Monegasque: 'mc', 'New Zealander': 'nz', Spanish: 'es', Thai: 'th', American: 'us', Swiss: 'ch', Irish: 'ie', Indian: 'in' };

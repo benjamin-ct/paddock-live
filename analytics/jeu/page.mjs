@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import { shapeOutline, nearestShape } from '../../shared/circuit-shapes.js';
 import { CIRCUITS, flagColors } from '../../shared/circuits-info.js';
 import { DRIVERS, NAT_ISO } from './drivers.mjs';
+import { TEAMS, RACES } from './teams-races.mjs';
+import { gpFull } from '../../shared/gp-names.js';
 
 const SITE = 'https://paddocklive.app';
 export const PATHS = { fr: 'jeu', en: 'en/guess-the-circuit' };
@@ -49,7 +51,7 @@ export function gameData(lang) {
 
 // Pilotes du jour « pilote » (analytics/jeu/drivers.mjs) : pays de la nationalité dans la langue de la page, drapeau
 // (pays sans Grand Prix, absents de shared/circuits-info.js : leurs couleurs ici)
-const FLAGS = { nz: ['#012169', '#C8102E'], fi: ['#F5F5F5', '#002F6C'], dk: ['#C8102E', '#F5F5F5'], se: ['#006AA7', '#FECC00'], ch: ['#DA291C', '#F5F5F5'] };
+const FLAGS = { nz: ['#012169', '#C8102E'], fi: ['#F5F5F5', '#002F6C'], dk: ['#C8102E', '#F5F5F5'], se: ['#006AA7', '#FECC00'], ch: ['#DA291C', '#F5F5F5'], ie: ['#169B62', '#FF883E'] };
 export function driverData(lang) {
   const country = new Intl.DisplayNames([lang], { type: 'region' });
   return DRIVERS.map((d) => {
@@ -57,6 +59,23 @@ export function driverData(lang) {
     if (!iso) throw new Error(`Devine le pilote : nationalité inconnue pour ${d.id} (${d.nat})`);
     return { id: d.id, name: d.name, iso, country: country.of(iso.toUpperCase()), flag: FLAGS[iso] || flagColors(iso), first: d.first, titles: d.titles, wins: d.wins, team: d.team };
   });
+}
+
+// Écuries (analytics/jeu/teams-races.mjs) : pays dans la langue de la page, drapeau ; en activité : sur la grille 2026
+export function teamData(lang) {
+  const country = new Intl.DisplayNames([lang], { type: 'region' });
+  return TEAMS.map((c) => {
+    const iso = NAT_ISO[c.nat];
+    if (!iso) throw new Error(`Devine l'écurie : nationalité inconnue pour ${c.id} (${c.nat})`);
+    return { id: c.id, name: c.name, iso, country: country.of(iso.toUpperCase()), flag: FLAGS[iso] || flagColors(iso), first: c.first, last: c.last, active: c.last >= 2026, wins: c.wins, titles: c.titles };
+  });
+}
+// Courses célèbres : seulement celles dont le vainqueur est dans la liste des pilotes ; nom du Grand Prix dans la langue de
+// la page (« Grand Prix du Brésil 2008 »)
+export function raceData(lang) {
+  const ids = new Set(DRIVERS.map((d) => d.id));
+  return RACES.filter((r) => ids.has(r.winner)).map((r) => ({ key: `${r.year}-${r.round}`, title: `${gpFull(r.race, lang === 'en')} ${r.year}`, circuit: r.circuit,
+    winner: r.winner, grid: r.grid, team: r.team }));
 }
 
 const T = {
@@ -79,6 +98,14 @@ const T = {
     mine: 'Ta partie du jour : {} pts', bonus: 'dont {} de bonus de série',
     joker: 'Joker', jokerTitle: 'Indice suivant sans perdre d\'essai : 2 points de moins', stake: 'Points en jeu : {}',
     jokerHint: 'Joker, {} : {}.',
+    modeTeam: 'Écurie', modeRace: 'Course', h1Team: 'Devine l\'écurie', h1Race: 'Qui a gagné ?',
+    leadTeam: 'Une écurie de F1 par jour : quelques indices au départ, un de plus à chaque erreur. Tu as six essais.',
+    leadRace: 'Une course célèbre par jour : trouve qui l\'a gagnée. Quelques indices au départ, un de plus à chaque erreur.',
+    placeholderTeam: 'Nom de l\'écurie', unknownTeam: 'Écurie inconnue : choisis-la dans la liste.', manyTeam: 'Plusieurs écuries correspondent : précise ou choisis dans la liste.',
+    teamShort: 'Écurie du jour', raceShort: 'Course du jour', carLabel: 'Monoplace, dessin sans livrée', flagLabel: 'Drapeau à damier',
+    tFirst: 'Première saison', tTitles: 'Titres constructeurs', tLast: 'Dernière saison', active: 'En activité',
+    grid: 'Départ du vainqueur', gridPos: '{}e sur la grille', pitStart: 'Des stands', rTeam: 'Écurie du vainqueur',
+    shareTitleTeam: 'Devine l\'écurie', shareTitleRace: 'Qui a gagné ?', special: 'Spécial week-end de Grand Prix',
     everyone: 'Tous les joueurs', groupNew: '+ Groupe d\'amis', groupMembers: '{} membres', groupInvite: 'Inviter (lien)', groupLeave: 'Quitter le groupe',
     groupNeedName: 'Choisis d\'abord un pseudo pour créer un groupe.', groupShareText: 'Rejoins mon classement du jeu du jour de Paddock Live',
     linkCopied: 'Lien copié : envoie-le à tes amis.', groupName: 'Nom du groupe', groupNamePh: 'Les potes du paddock', groupCreate: 'Créer le groupe',
@@ -97,7 +124,7 @@ const T = {
     shareTitle: 'Devine le circuit', shareStreak: '🔥 Série : {} jours', url: 'paddocklive.app/jeu/',
     noscript: 'Le jeu a besoin de JavaScript pour fonctionner.',
     howTitle: 'Comment jouer',
-    how: ['Un nouveau jeu chaque jour à minuit, heure de Paris, le même pour tout le monde : un circuit ou un pilote à deviner, en facile, moyen ou difficile.',
+    how: ['Un nouveau jeu chaque jour à minuit, heure de Paris, le même pour tout le monde, en facile, moyen ou difficile : un circuit, un pilote, une écurie ou le vainqueur d\'une course célèbre à deviner. Pendant un week-end de Grand Prix : le vainqueur d\'une édition passée de ce Grand Prix.',
       'Circuit : au départ, seule une partie du tracé est visible (plus ou moins selon la difficulté). Chaque erreur dévoile un peu plus le tracé, et un indice : le pays, la longueur, le nombre de virages, l\'année du premier Grand Prix de F1, puis la ville. Les 40 circuits de la liste ont tous accueilli la F1, ou vont l\'accueillir.',
       'Pilote : 1 à 3 indices au départ selon la difficulté (débuts en F1, titres, victoires, pays, dernière écurie, initiales), un de plus à chaque erreur. Les 44 pilotes de la liste : la grille 2026 et de grands champions ; chiffres arrêtés au 7 novembre 2026.',
       'Carré jaune : bon pays (circuit) ou même nationalité (pilote). Six essais au plus. Le joker donne l\'indice suivant sans perdre d\'essai.',
@@ -127,6 +154,14 @@ const T = {
     mine: 'Today\'s game: {} pts', bonus: 'including {} streak bonus',
     joker: 'Joker', jokerTitle: 'Next clue without losing a guess: 2 points less', stake: 'Points at stake: {}',
     jokerHint: 'Joker, {}: {}.',
+    modeTeam: 'Team', modeRace: 'Race', h1Team: 'Guess the team', h1Race: 'Who won?',
+    leadTeam: 'One F1 team a day: a few clues to start with, one more with every miss. You get six guesses.',
+    leadRace: 'One famous race a day: find out who won it. A few clues to start with, one more with every miss.',
+    placeholderTeam: 'Team name', unknownTeam: 'Unknown team: pick one from the list.', manyTeam: 'Several teams match: be more specific or pick from the list.',
+    teamShort: 'Today\'s team', raceShort: 'Today\'s race', carLabel: 'A racing car, plain drawing', flagLabel: 'Chequered flag',
+    tFirst: 'First season', tTitles: 'Constructors\' titles', tLast: 'Last season', active: 'Still racing',
+    grid: 'Winner\'s start', gridPos: 'P{} on the grid', pitStart: 'Pit lane', rTeam: 'Winner\'s team',
+    shareTitleTeam: 'Guess the team', shareTitleRace: 'Who won?', special: 'Grand Prix weekend special',
     everyone: 'All players', groupNew: '+ Friends group', groupMembers: '{} members', groupInvite: 'Invite (link)', groupLeave: 'Leave group',
     groupNeedName: 'Pick a nickname first to create a group.', groupShareText: 'Join my leaderboard for the Paddock Live daily game',
     linkCopied: 'Link copied: send it to your friends.', groupName: 'Group name', groupNamePh: 'Paddock pals', groupCreate: 'Create group',
@@ -145,7 +180,7 @@ const T = {
     shareTitle: 'Guess the circuit', shareStreak: '🔥 Streak: {} days', url: 'paddocklive.app/en/guess-the-circuit/',
     noscript: 'The game needs JavaScript to work.',
     howTitle: 'How to play',
-    how: ['A new game every day at midnight, Paris time, the same for everyone: a circuit or a driver to guess, on easy, medium or hard.',
+    how: ['A new game every day at midnight, Paris time, the same for everyone, on easy, medium or hard: a circuit, a driver, a team or the winner of a famous race to guess. On a Grand Prix weekend: the winner of a past edition of that Grand Prix.',
       'Circuit: at first only part of the layout is shown (more or less depending on difficulty). Every miss reveals more of the track, and a clue: the country, the length, the number of turns, the year of the first F1 Grand Prix, then the city. All 40 circuits in the list have hosted F1, or are about to.',
       'Driver: 1 to 3 clues to start with depending on difficulty (F1 debut, titles, wins, country, last team, initials), one more with every miss. The 44 drivers in the list: the 2026 grid and great champions; figures as of 7 November 2026.',
       'Yellow square: right country (circuit) or same nationality (driver). Six guesses at most. The joker gives the next clue without losing a guess.',
@@ -163,6 +198,8 @@ const CLIENT = ['locale', 'num', 'next', 'fresh', 'reload', 'hit', 'near', 'miss
   'driverShort', 'modeCircuit', 'modeDriver', 'lv_easy', 'lv_medium', 'lv_hard', 'h1Driver', 'leadDriver', 'placeholderDriver', 'unknownDriver', 'manyDriver',
   'nearDriver', 'debut', 'titles', 'wins', 'nat', 'team', 'initials', 'shareTitleDriver', 'players', 'pts', 'days', 'rank', 'you', 'boardEmpty',
   'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint', 'h1', 'imgSaved', 'lost', 'toPlay', 'archEmpty',
+  'modeTeam', 'modeRace', 'h1Team', 'h1Race', 'leadTeam', 'leadRace', 'placeholderTeam', 'unknownTeam', 'manyTeam', 'teamShort', 'raceShort',
+  'tFirst', 'tTitles', 'tLast', 'active', 'grid', 'gridPos', 'pitStart', 'rTeam', 'shareTitleTeam', 'shareTitleRace', 'special',
   'everyone', 'groupNew', 'groupMembers', 'groupInvite', 'groupLeave', 'groupNeedName', 'groupShareText', 'linkCopied', 'invited'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -199,7 +236,7 @@ a { color: inherit; }
 .btn.ghost:hover { background: var(--panel-2); }
 .nav .btn { margin-left: auto; min-height: 36px; padding: 0 14px; font-size: 14px; }
 .eyebrow, .label { color: var(--muted); font: 500 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
-.eyebrow { display: flex; gap: 10px; margin: 48px 0 14px; }
+.eyebrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 48px 0 14px; }
 .eyebrow b { color: var(--text-2); font-weight: 500; }
 h1, h2 { font-family: var(--title); font-weight: 800; text-transform: uppercase; letter-spacing: .005em; margin: 0; }
 h1 { font-size: clamp(40px, 7vw, 72px); line-height: .92; }
@@ -218,12 +255,17 @@ h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: .95; margin: 64px 0 16px;
 .trk-under { fill: none; stroke: var(--bg); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
 .trk { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: stroke .4s, stroke-dasharray .6s var(--ease), stroke-dashoffset .6s var(--ease); }
 .track.won .trk { stroke: var(--best); }
-/* Jour « pilote » : casque dessiné à la place du tracé ; difficulté du jour en pastille */
-.stage .helmet { display: none; padding: 16%; }
-body.driver .stage .map { display: none; }
-body.driver .stage .helmet { display: block; }
-body.driver .stage .north { display: none; }
-.level { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--text-2); }
+/* Jours « pilote », « écurie », « course » : dessin à la place du tracé ; difficulté du jour en pastille */
+.stage .helmet, .stage .car, .stage .flagfig { display: none; padding: 16%; }
+body:not([data-mode="circuit"]) .stage .map, body:not([data-mode="circuit"]) .stage .north { display: none; }
+body[data-mode="driver"] .stage .helmet, body[data-mode="team"] .stage .car { display: block; }
+body[data-mode="race"] .stage .flagfig { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 10%; gap: 10px; }
+.flagfig svg { width: 60%; height: auto; }
+.chk { fill: var(--text); }
+.premise { margin: 0; text-align: center; font: 800 clamp(22px, 4vw, 30px)/1.05 var(--title); text-transform: uppercase; }
+.premise small { display: block; margin-top: 6px; color: var(--muted); font: 500 12px/1.3 var(--mono); letter-spacing: .1em; }
+.special { color: var(--accent); border-color: currentColor; }
+.level { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--text-2); white-space: nowrap; }
 .level:empty { display: none; }
 .level[data-level="easy"] { color: var(--pb); border-color: currentColor; }
 .level[data-level="medium"] { color: var(--yellow); border-color: currentColor; }
@@ -339,10 +381,10 @@ footer a { color: var(--text-2); text-underline-offset: 3px; }
 export function gamePage(lang) {
   const t = T[lang], other = lang === 'fr' ? 'en' : 'fr';
   const url = `${SITE}/${PATHS[lang]}/`;
-  const circuits = gameData(lang), drivers = driverData(lang);
+  const circuits = gameData(lang), drivers = driverData(lang), teams = teamData(lang), races = raceData(lang);
   const names = [...circuits].sort((a, b) => a.name.localeCompare(b.name, lang));
   const driverNames = [...drivers].sort((a, b) => a.name.split(' ').at(-1).localeCompare(b.name.split(' ').at(-1), lang));
-  const data = { t: Object.fromEntries(CLIENT.map((k) => [k, t[k]])), circuits, drivers };
+  const data = { t: Object.fromEntries(CLIENT.map((k) => [k, t[k]])), circuits, drivers, teams, races };
   const ld = { '@context': 'https://schema.org', '@type': 'WebApplication', name: t.h1, url, description: t.description, applicationCategory: 'GameApplication', operatingSystem: 'Web',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' }, isPartOf: { '@type': 'WebSite', name: 'Paddock Live', url: `${SITE}/` } };
   const json = (x) => JSON.stringify(x).replace(/</g, '\\u003c');
@@ -381,7 +423,7 @@ ${STYLE}</style>
   <a class="btn" href="${t.home}#telecharger">${t.dl}</a>
 </div></header>
 <main class="wrap">
-  <p class="eyebrow">${esc(t.eyebrow)} <b id="num"></b> <span class="level" id="level" title="${esc(t.levelLabel)}"></span> <span class="level arch-tag" id="archTag" hidden>${esc(t.archTag)}</span></p>
+  <p class="eyebrow">${esc(t.eyebrow)} <b id="num"></b> <span class="level" id="level" title="${esc(t.levelLabel)}"></span> <span class="level arch-tag" id="archTag" hidden>${esc(t.archTag)}</span> <span class="level special" id="specialTag" hidden>${esc(t.special)}</span></p>
   <p id="archBack" hidden><a class="linkish" href="./">${esc(t.archBack)}</a></p>
   <h1 id="h1">${esc(t.h1)}</h1>
   <p class="lead" id="lead">${esc(t.lead)}</p>
@@ -392,6 +434,8 @@ ${STYLE}</style>
       <div class="stage"><span class="north" aria-hidden="true">${t.north}</span>
         <svg class="map" viewBox="-4 -4 108 108" role="img" aria-label="${esc(t.trackLabel)}"><polygon class="trk-under" id="trkU" points="" pathLength="1"/><polygon class="trk" id="trk" points="" pathLength="1"/></svg>
         <svg class="helmet" viewBox="0 0 100 100" role="img" aria-label="${esc(t.helmetLabel)}"><path class="trk" d="M18 64C18 36 36 20 58 20c17 0 28 13 28 30v10c0 7-4 11-10 11H29c-6 0-11-3-11-7z"/><path class="trk" d="M52 38h34v13H48c0-6 1-10 4-13z"/><path class="trk" d="M30 71v8h40l6-8"/></svg>
+        <svg class="car" viewBox="0 0 100 100" role="img" aria-label="${esc(t.carLabel)}"><path class="trk" d="M8 64h12l10-5h20l5-7h9l4 7h18v6H8z"/><path class="trk" d="M3 69h18M84 42h12v6H84zM90 48v11"/><circle class="trk" cx="60" cy="49" r="3"/><circle class="trk" cx="26" cy="67" r="8"/><circle class="trk" cx="78" cy="67" r="8"/></svg>
+        <div class="flagfig"><svg viewBox="0 0 100 100" role="img" aria-label="${esc(t.flagLabel)}"><path class="trk" d="M20 86V14"/><path class="trk" d="M20 16c14-6 26 6 40 0s20-4 24-2v34c-4-2-10-4-24 2s-26-6-40 0"/><path class="chk" d="M20 16h16v11H20zM52 16h16v11H52zM36 27h16v11H36zM68 27h16v11H68zM20 38h16v11H20zM52 38h16v11H52z"/></svg><p class="premise" id="premise"></p></div>
       </div>
       <figcaption class="answer" id="answer" hidden></figcaption>
       <noscript><p class="noscript">${esc(t.noscript)}</p></noscript>
@@ -404,6 +448,7 @@ ${STYLE}</style>
         <p class="msg" id="msg" role="status"></p>
       </form>
       <datalist id="names">${names.map((c) => `<option value="${esc(c.name)}">${esc(c.city)}</option>`).join('')}</datalist>
+      <datalist id="teams">${[...teams].sort((a, b) => a.name.localeCompare(b.name, lang)).map((c) => `<option value="${esc(c.name)}"></option>`).join('')}</datalist>
       <datalist id="drivers">${driverNames.map((d) => `<option value="${esc(d.name)}"></option>`).join('')}</datalist>
       <ol class="tries" id="tries" aria-label="${esc(t.tries)}"></ol>
       <p class="label hints-h" id="hintsH">${esc(t.hintsTitle)}</p>

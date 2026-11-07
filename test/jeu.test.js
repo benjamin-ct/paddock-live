@@ -102,21 +102,43 @@ test('jeu du jour : un quart du tracé au départ, un peu plus à chaque erreur,
 });
 
 // ---------- Pilotes, difficultés et classement ----------
-import { MIX_DAY, LEVELS, plan, points, streakBonus, cluesShown, driverHints, REVEAL } from '../analytics/jeu/game.js';
-import { driverData } from '../analytics/jeu/page.mjs';
+import { MIX_DAY, LEVELS, MODES, SPECIAL, plan, points, streakBonus, cluesShown, driverHints, teamHints, raceHints, REVEAL } from '../analytics/jeu/game.js';
+import { driverData, teamData, raceData } from '../analytics/jeu/page.mjs';
 import { jeuApi, nameOk, cleanName, periods } from '../analytics/jeu-board.js';
 import fs from 'node:fs';
 
-test('jeu du jour : programme (circuit ou pilote, difficulté) le même pour tous, jamais trois fois de suite le même type', () => {
-  assert.deepEqual(plan(FIRST_DAY), { mode: 'circuit', level: 'medium' });   // parties déjà jouées avant le mélange
-  assert.deepEqual(plan(MIX_DAY - 1), { mode: 'circuit', level: 'medium' });
+test('jeu du jour : programme (type, difficulté) le même pour tous, jamais deux jours de suite le même type hors week-end de GP', () => {
+  assert.deepEqual(plan(FIRST_DAY), { mode: 'circuit', level: 'medium', race: null });   // parties déjà jouées avant le mélange
+  assert.deepEqual(plan(MIX_DAY - 1), { mode: 'circuit', level: 'medium', race: null });
   const days = Array.from({ length: 2000 }, (_, i) => plan(MIX_DAY + i));
   for (const [i, p] of days.entries()) {
-    assert.ok(['circuit', 'driver'].includes(p.mode) && LEVELS.includes(p.level), `jour ${i}`);
-    if (i >= 2) assert.ok(!(p.mode === days[i - 1].mode && p.mode === days[i - 2].mode), `trois fois ${p.mode} au jour ${i}`);
+    assert.ok(MODES.includes(p.mode) && LEVELS.includes(p.level), `jour ${i}`);
+    if (i && !SPECIAL[MIX_DAY + i]) assert.notEqual(p.mode, days[i - 1].mode, `deux fois ${p.mode} au jour ${i}`);
   }
-  for (const m of ['circuit', 'driver']) assert.ok(days.filter((p) => p.mode === m).length > 800, m);
+  for (const m of MODES) assert.ok(days.filter((p) => p.mode === m).length > 400, m);
   for (const l of LEVELS) assert.ok(days.filter((p) => p.level === l).length > 550, l);
+  // Week-ends de Grand Prix : « qui a gagné ? » sur une course de la liste, qui existe dans les deux langues
+  for (const [d, key] of Object.entries(SPECIAL)) {
+    assert.deepEqual([plan(Number(d)).mode, plan(Number(d)).race], ['race', key]);
+    for (const lang of ['fr', 'en']) assert.ok(raceData(lang).some((r) => r.key === key), `${lang} ${key}`);
+  }
+});
+
+test('jeu du jour : écuries et courses célèbres (indices complets, vainqueurs dans la liste des pilotes)', () => {
+  const T = { tFirst: 'Première saison', tTitles: 'Titres', wins: 'Victoires', nat: 'Pays', tLast: 'Dernière saison', active: 'En activité', initials: 'Initiales',
+    grid: 'Départ', gridPos: '{}e sur la grille', pitStart: 'Des stands', rTeam: 'Écurie', titles: 'Titres mondiaux', debut: 'Débuts' };
+  for (const lang of ['fr', 'en']) {
+    const teams = teamData(lang), races = raceData(lang), drivers = new Set(driverData(lang).map((d) => d.id));
+    assert.ok(teams.length >= 20 && races.length >= 30);
+    assert.equal(new Set(teams.map((x) => x.name)).size, teams.length);
+    for (const c of teams) assert.ok(c.country && c.first >= 1950 && c.last >= c.first, c.id);
+    for (const r of races) assert.ok(drivers.has(r.winner) && r.title && r.team && r.grid >= 0, r.key);
+  }
+  const ferrari = teamData('fr').find((x) => x.id === 'ferrari');
+  assert.deepEqual(teamHints(ferrari, T).map((x) => x[1]), ['1950', '16', '251', 'Italie', 'En activité', 'F.']);
+  const r = raceData('fr').find((x) => x.key === '2024-21'), max = driverData('fr').find((x) => x.id === 'max_verstappen');
+  assert.equal(r.title, 'Grand Prix de São Paulo 2024');
+  assert.deepEqual(raceHints(r, max, T).slice(0, 2).map((x) => x[1]), ['17e sur la grille', 'Red Bull']);
 });
 
 test('jeu du jour : difficulté (part du tracé, indices du pilote) et points du classement', () => {

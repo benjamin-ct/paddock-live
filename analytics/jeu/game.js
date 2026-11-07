@@ -36,20 +36,27 @@ export function dailyIndex(day, n) {
   return p[day - cycle * n];
 }
 
-// Programme du jour, le même pour tous : circuit ou pilote à deviner, et difficulté (facile, moyen, difficile), tirés
-// du jour (jamais trois jours de suite le même type). Avant MIX_DAY : circuit, moyen (parties déjà jouées)
+// Programme du jour, le même pour tous : type (circuit, pilote, écurie ou vainqueur d'une course célèbre, jamais deux jours
+// de suite le même) et difficulté (facile, moyen, difficile), tirés du jour. Week-end de Grand Prix (SPECIAL) : « qui a
+// gagné ? » sur une édition passée de ce Grand Prix. Avant MIX_DAY : circuit, moyen (parties déjà jouées)
+export const MODES = ['circuit', 'driver', 'team', 'race'];
 const mix = (d) => { let x = Math.imul(d ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); return (x ^ (x >>> 16)) >>> 0; };
-const rawMode = (d) => (mix(d) % 2 ? 'driver' : 'circuit');
+// Jours de Paris des week-ends de Grand Prix (vendredi à dimanche) -> course (année-manche, analytics/jeu/races.mjs)
+export const SPECIAL = {
+  20765: '2008-18',                                     // Brésil, dimanche 8 nov. 2026 : Grand Prix du Brésil 2008
+  20776: '2023-21', 20777: '2024-22',                   // Las Vegas, 19-21 nov.
+  20784: '2021-20', 20785: '2023-17',                   // Qatar, 27-29 nov.
+  20791: '2010-19', 20792: '2021-22', 20793: '2024-24', // Abou Dabi, 4-6 déc.
+};
 export function plan(day) {
-  if (day < MIX_DAY) return { mode: 'circuit', level: 'medium' };
-  // Types des jours depuis MIX_DAY, dans l'ordre : un troisième jour de suite du même type passe à l'autre
-  let a = null, b = null;
+  if (day < MIX_DAY) return { mode: 'circuit', level: 'medium', race: null };
+  let prev = null, mode = null;
   for (let d = MIX_DAY; d <= day; d++) {
-    let m = rawMode(d);
-    if (m === a && m === b) m = m === 'driver' ? 'circuit' : 'driver';
-    [b, a] = [a, m];
+    mode = SPECIAL[d] ? 'race' : MODES[mix(d) % MODES.length];
+    if (!SPECIAL[d] && mode === prev) mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+    prev = mode;
   }
-  return { mode: a, level: LEVELS[Math.floor(mix(day) / 2) % 3] };
+  return { mode, level: LEVELS[Math.floor(mix(day) / 4) % 3], race: SPECIAL[day] || null };
 }
 
 // Points : 10 au départ, moins 1 par erreur (elle donne un indice) et 2 par joker (indice suivant sans perdre d'essai),
@@ -76,9 +83,19 @@ export function hints(c, t) {
 
 // Indices d'un pilote, du plus difficile au plus facile : débuts en F1, titres, victoires, pays, dernière écurie, initiales
 export function driverHints(d, t) {
-  const initials = d.name.split(/[\s-]+/).filter(Boolean).map((w) => `${w[0].toUpperCase()}.`).join(' ');
-  return [[t.debut, String(d.first)], [t.titles, String(d.titles)], [t.wins, String(d.wins)], [t.nat, d.country], [t.team, d.team], [t.initials, initials]];
+  return [[t.debut, String(d.first)], [t.titles, String(d.titles)], [t.wins, String(d.wins)], [t.nat, d.country], [t.team, d.team], [t.initials, initialsOf(d.name)]];
 }
+
+// Indices d'une écurie : première saison, titres constructeurs, victoires, pays, dernière saison (en activité), initiales
+export function teamHints(c, t) {
+  return [[t.tFirst, String(c.first)], [t.tTitles, String(c.titles)], [t.wins, String(c.wins)], [t.nat, c.country], [t.tLast, c.active ? t.active : String(c.last)], [t.initials, initialsOf(c.name)]];
+}
+// Indices du vainqueur d'une course : place sur la grille, écurie, pays, titres mondiaux, débuts en F1, initiales
+export function raceHints(r, d, t) {
+  return [[t.grid, r.grid ? fmt1(t.gridPos, r.grid) : t.pitStart], [t.rTeam, r.team], [t.nat, d.country], [t.titles, String(d.titles)], [t.debut, String(d.first)], [t.initials, initialsOf(d.name)]];
+}
+const fmt1 = (s, v) => s.replace('{}', v);
+const initialsOf = (name) => name.split(/[\s-]+/).filter(Boolean).map((w) => `${w[0].toUpperCase()}.`).join(' ');
 
 // Essai comparé à la réponse : trouvé, presque (circuit : même pays, identifiant « au-1953 » = code du pays et année
 // d'ouverture ; pilote : même nationalité, comparée par la fonction same) ou raté
