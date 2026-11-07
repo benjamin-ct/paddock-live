@@ -87,3 +87,12 @@ UPDATE push_subs SET topics = replace(topics, 'eve@', 'tz@') WHERE instr(topics,
 UPDATE push_subs SET topics = topics || ',tz@Europe/Paris' WHERE lang = 'fr' AND instr(topics, 'tz@') = 0;
 CREATE TABLE IF NOT EXISTS push_out (id INTEGER PRIMARY KEY AUTOINCREMENT, topic TEXT NOT NULL, msg TEXT NOT NULL, cursor TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS push_sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL);
+
+-- Classement du jeu du jour (paddocklive.app/jeu/, analytics/jeu-board.js) : joueurs qui l'ont rejoint (identifiant
+-- aléatoire du navigateur, pseudo ; nkey : pseudo sans accents ni majuscules, pris par un seul joueur), un résultat par
+-- joueur et par jour (jour de Paris, comme le jeu), envois par adresse et par jour
+CREATE TABLE IF NOT EXISTS jeu_players (uid TEXT PRIMARY KEY, name TEXT NOT NULL, nkey TEXT NOT NULL UNIQUE, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS jeu_scores (day INTEGER NOT NULL, uid TEXT NOT NULL, pts INTEGER NOT NULL, tries INTEGER NOT NULL, won INTEGER NOT NULL,
+  at INTEGER NOT NULL, PRIMARY KEY (day, uid));
+CREATE INDEX IF NOT EXISTS jeu_scores_uid ON jeu_scores (uid);
+CREATE TABLE IF NOT EXISTS jeu_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));

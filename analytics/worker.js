@@ -27,6 +27,7 @@ import { SHORT_RE, SHORT } from '../shared/track-links.js';
 import { feedbackPost, feedbackFile } from './feedback.js';
 import { buildIcs } from '../shared/ics.js';
 import { pronosApi, GROUP_RE } from './pronos.js';
+import { jeuApi } from './jeu-board.js';
 import { pruneIpQuota, callerIp, ipQuota } from './quota.js';
 import { healthCheck, HEALTH } from './health.js';
 import { publicPushApi, pushRun, queuePush, sessionReminders, eveSoon, eveReminders, eveZones, morningDigests } from './push-public.js';
@@ -348,6 +349,10 @@ export default {
     if (url.pathname === '/news/api' || url.pathname === '/news/api/article') {
       try { return await newsApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
+    // Classement du jeu du jour (paddocklive.app/jeu/)
+    if (url.pathname.startsWith('/jeu/api/')) {
+      try { return await jeuApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
+    }
     if (url.pathname.startsWith('/p/api/')) {
       try { return await pronosApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
@@ -462,7 +467,7 @@ export async function prune(env, now) {
   // Compteurs par adresse des jours passés (essais ratés, messages, groupes de pronostics) et textes des radios
   // de plus d'un an (redemandés si quelqu'un revoit une si vieille séance)
   const today = new Date(now).toISOString().slice(0, 10);
-  for (const t of ['studio_fail', 'feedback_new', 'pronos_new']) await env.DB.prepare(`DELETE FROM ${t} WHERE day < ?1`).bind(today).run();
+  for (const t of ['studio_fail', 'feedback_new', 'pronos_new', 'jeu_new']) await env.DB.prepare(`DELETE FROM ${t} WHERE day < ?1`).bind(today).run();
   await env.DB.prepare('DELETE FROM radio_texts WHERE at < ?1').bind(now - 365 * 86400e3).run();
   await env.DB.prepare('DELETE FROM push_sent WHERE at < ?1').bind(now - 30 * 86400e3).run();
   // Témoins des programmations publiées (un nouvel envoi du même post n'est pas republié) : 7 jours
