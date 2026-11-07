@@ -4010,7 +4010,7 @@ html.phone .panel-head .tab-add { display: none; }
 /* Fenêtre de la Comparaison seule (?tab=compare) : le panneau Analyse réduit à cet onglet, sans boutons de panneau */
 html.tab-win .p-analysis .panel-head > [data-tab]:not([data-tab="compare"]), html.tab-win .p-analysis .panel-head > :is(.tab-add, .panel-ctrl, .seg),
 html.tab-win .cmp-pop { display: none !important; }
-html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-flex !important; }
+html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-flex !important; align-items: center; }
 /* Analyse → Tendances (ui/insights.js) : départ, usure des pneus, évolution de la piste, choix d'aileron */
 .ins { display: grid; gap: 14px; padding: 10px 12px 16px; }
 .ins-block h4 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
