@@ -1,9 +1,9 @@
 // Page du jeu du jour (/jeu/, /en/guess-the-circuit/) : circuit ou pilote du jour, essais, indices, partage, série et
 // classement. Tracés, pilotes et textes dans la page (analytics/jeu/page.mjs) ; partie et série dans ce navigateur
 // (localStorage) ; seulement pour qui rejoint le classement : pseudo et résultat envoyés au serveur (/jeu/api/).
-import { TRIES, FIRST_DAY, MAX_JOKERS, parisDay, dailyIndex, hints, driverHints, mark, stats, shareText, revealed, revealStart, cluesShown, plan, points } from './game.js';
+import { TRIES, FIRST_DAY, MAX_JOKERS, parisDay, dailyIndex, hints, driverHints, teamHints, raceHints, mark, stats, shareText, revealed, revealStart, cluesShown, plan, points } from './game.js';
 
-const { t, circuits, drivers } = JSON.parse(document.getElementById('data').textContent);
+const { t, circuits, drivers, teams, races } = JSON.parse(document.getElementById('data').textContent);
 const $ = (id) => document.getElementById(id);
 const today = parisDay();
 // Archives : ?n=<numéro> rejoue un jour passé, sans points, sans série ni classement (partie gardée à part)
@@ -12,14 +12,23 @@ const day = Number.isInteger(askN) && askN >= 1 && FIRST_DAY + askN - 1 < today 
 const archive = day !== today;
 // Lien d'invitation à un classement entre amis : ?g=<groupe>
 const invited = /^[a-z0-9]{8}$/.test(new URLSearchParams(location.search).get('g') || '') ? new URLSearchParams(location.search).get('g') : null;
-const { mode, level } = plan(day);
-const isDriver = mode === 'driver';
-const pool = isDriver ? drivers : circuits.filter((c) => c.turns);   // circuits : indices complets
-const answer = pool[dailyIndex(day, pool.length)];
-const items = isDriver ? drivers : circuits;
+const { mode, level, race: special } = plan(day);
+// Type du jour : réponses possibles (items), réponse, textes ; « course » : la réponse est le pilote vainqueur
+const isCircuit = mode === 'circuit';
+const race = mode === 'race' ? races.find((r) => r.key === special) || races[dailyIndex(day, races.length)] : null;
+const items = isCircuit ? circuits : mode === 'team' ? teams : drivers;
+const pool = isCircuit ? circuits.filter((c) => c.turns) : items;   // circuits : indices complets
+const answer = race ? drivers.find((d) => d.id === race.winner) : pool[dailyIndex(day, pool.length)];
 const byId = new Map(items.map((c) => [c.id, c]));
-const natOf = new Map(drivers.map((d) => [d.id, d.iso]));
-const same = isDriver ? (a, b) => natOf.get(a) === natOf.get(b) : undefined;
+const natOf = new Map(items.map((d) => [d.id, d.iso]));
+const same = isCircuit ? undefined : (a, b) => natOf.get(a) === natOf.get(b);
+const M = {
+  circuit: { label: t.modeCircuit, h1: t.h1, lead: t.lead, list: 'names', ph: t.placeholder, short: t.trackShort, share: t.shareTitle, unknown: t.unknown, many: t.many, near: t.near },
+  driver: { label: t.modeDriver, h1: t.h1Driver, lead: t.leadDriver, list: 'drivers', ph: t.placeholderDriver, short: t.driverShort, share: t.shareTitleDriver, unknown: t.unknownDriver, many: t.manyDriver, near: t.nearDriver },
+  team: { label: t.modeTeam, h1: t.h1Team, lead: t.leadTeam, list: 'teams', ph: t.placeholderTeam, short: t.teamShort, share: t.shareTitleTeam, unknown: t.unknownTeam, many: t.manyTeam, near: t.nearDriver },
+  race: { label: t.modeRace, h1: t.h1Race, lead: t.leadRace, list: 'drivers', ph: t.placeholderDriver, short: t.raceShort, share: t.shareTitleRace, unknown: t.unknownDriver, many: t.manyDriver, near: t.nearDriver },
+};
+const MT = M[mode];
 const KEY = 'pl-jeu-circuit', PLAYER = 'pl-jeu-joueur', OLD = 'pl-jeu-archives', GROUPS = 'pl-jeu-groupes';
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };   // stockage refusé : partie d'un seul affichage
 let games = load(KEY), olds = load(OLD);
@@ -34,32 +43,34 @@ const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().rep
 const num = day - FIRST_DAY + 1;
 
 // Programme du jour : type et difficulté en tête de page, titre et saisie du bon type
-$('num').textContent = `· ${fmt(t.num, num)} · ${isDriver ? t.modeDriver : t.modeCircuit}`;
+$('num').textContent = `· ${fmt(t.num, num)} · ${MT.label}`;
 $('level').textContent = t[`lv_${level}`];
 $('level').dataset.level = level;
-if (isDriver) {
-  document.body.classList.add('driver');
-  $('h1').textContent = t.h1Driver;
-  $('lead').textContent = t.leadDriver;
-  $('guess').setAttribute('list', 'drivers');
-  $('guess').placeholder = t.placeholderDriver;
-  $('trackShort').textContent = t.driverShort;
+document.body.dataset.mode = mode;
+$('specialTag').hidden = !special;
+if (!isCircuit) {
+  $('h1').textContent = MT.h1;
+  $('lead').textContent = MT.lead;
+  $('guess').setAttribute('list', MT.list);
+  $('guess').placeholder = MT.ph;
+  $('trackShort').textContent = MT.short;
 }
+if (race) $('premise').innerHTML = `${esc(race.title)}<small>${esc(race.circuit)}</small>`;
 
 // Essai saisi -> circuit (nom ou ville) ou pilote (nom complet ou nom de famille) : exact, sinon le seul qui contient le texte
-const keys = (c) => (isDriver ? [c.name, c.name.split(' ').slice(1).join(' ')] : [c.name, c.city]).map(norm);
+const keys = (c) => (isCircuit ? [c.name, c.city] : mode === 'team' ? [c.name] : [c.name, c.name.split(' ').slice(1).join(' ')]).map(norm);
 function find(text) {
   const q = norm(text);
-  if (!q) return { err: isDriver ? t.unknownDriver : t.unknown };
+  if (!q) return { err: MT.unknown };
   const exact = items.filter((c) => keys(c).includes(q));
   if (exact.length === 1) return { c: exact[0] };
   const part = q.length >= 3 ? items.filter((c) => ` ${keys(c).join(' ')} `.includes(q)) : [];
   if (part.length === 1) return { c: part[0] };
-  return { err: part.length || exact.length ? (isDriver ? t.manyDriver : t.many) : (isDriver ? t.unknownDriver : t.unknown) };
+  return { err: part.length || exact.length ? MT.many : MT.unknown };
 }
 
 const marks = () => game.g.map((id) => mark(id, answer.id, same));
-const clues = () => (isDriver ? driverHints(answer, t) : hints(answer, t));
+const clues = () => (race ? raceHints(race, answer, t) : mode === 'team' ? teamHints(answer, t) : mode === 'driver' ? driverHints(answer, t) : hints(answer, t));
 let shown = { tries: game.g.length, hints: null };
 
 function render() {
@@ -67,12 +78,12 @@ function render() {
   const misses = m.filter((x) => x !== 'hit').length, jokers = game.j || 0, helps = misses + jokers;
   $('tries').innerHTML = Array.from({ length: TRIES }, (_, i) => {
     const c = byId.get(game.g[i]);
-    return `<li class="${c ? 'on' : ''}${i >= shown.tries && c ? ' new' : ''}"><span class="n">${i + 1}</span><span class="nm">${c ? esc(c.name) : '—'}</span>${c ? `<span class="tag ${m[i]}">${isDriver && m[i] === 'near' ? t.nearDriver : t[m[i]]}</span>` : ''}</li>`;
+    return `<li class="${c ? 'on' : ''}${i >= shown.tries && c ? ' new' : ''}"><span class="n">${i + 1}</span><span class="nm">${c ? esc(c.name) : '—'}</span>${c ? `<span class="tag ${m[i]}">${m[i] === 'near' ? MT.near : t[m[i]]}</span>` : ''}</li>`;
   }).join('');
   const list = clues();
-  const open = isDriver ? cluesShown(helps, done, level) : (done ? 5 : Math.min(helps, 5));
-  const flagAt = isDriver ? 3 : 0;   // pays du pilote, pays du circuit
-  const startOpen = isDriver ? cluesShown(0, false, level) : 0;
+  const open = isCircuit ? (done ? 5 : Math.min(helps, 5)) : cluesShown(helps, done, level);
+  const flagAt = { circuit: 0, driver: 3, team: 3, race: 2 }[mode];   // indice du pays
+  const startOpen = isCircuit ? 0 : cluesShown(0, false, level);
   $('hints').innerHTML = list.map(([label, value], i) => {
     const flag = i === flagAt ? `<span class="flag" aria-hidden="true">${answer.flag.map((col) => `<i style="background:${col}"></i>`).join('')}</span>` : '';
     const after = i - startOpen + 1;   // erreurs qu'il faut pour le voir
@@ -81,7 +92,7 @@ function render() {
   }).join('');
   shown = { tries: game.g.length, hints: open };
   // Circuit : seulement une partie du tracé au départ, dévoilée au fil des erreurs (trait du tour, longueur 1 : pathLength)
-  if (!isDriver) {
+  if (isCircuit) {
     const f = revealed(helps, done, level);
     for (const el of [$('trk'), $('trkU')]) {
       el.style.strokeDasharray = f < 1 ? `${f} ${1 - f}` : 'none';
@@ -90,22 +101,22 @@ function render() {
   }
   $('form').hidden = done;
   // Joker : l'indice suivant sans perdre d'essai, 2 points de moins ; points encore possibles
-  const left = isDriver ? 6 - open : 5 - open;
+  const left = isCircuit ? 5 - open : 6 - open;
   $('joker').disabled = done || left <= 0 || jokers >= MAX_JOKERS;
   $('stake').textContent = fmt(t.stake, points(level, misses, jokers, true));
   if (!done) return;
   const won = game.r === 'w';
   $('track').classList.toggle('won', won);
   $('answer').hidden = false;
-  $('answer').innerHTML = isDriver ? `<b>${esc(answer.name)}</b><span>${esc(answer.country)} · ${esc(answer.team)}</span>`
-    : `<b>${esc(answer.name)}</b><span>${esc(answer.city)} · ${esc(answer.country)}</span>`;
+  $('answer').innerHTML = `<b>${esc(answer.name)}</b><span>${esc(isCircuit ? `${answer.city} · ${answer.country}` : mode === 'team' ? answer.country
+    : race ? `${race.title} · ${race.team}` : `${answer.country} · ${answer.team}`)}</span>`;
   $('end').hidden = false;
   $('endH').textContent = won ? (m.length === 1 ? t.winOne : fmt(t.win, m.length)) : `${t.lose} ${answer.name}`;
   const s = stats(games, today);
   for (const id of ['stats', 'shareText', 'shareRow']) $(id).hidden = archive;
   if (archive) { $('archNote').hidden = false; return; }
   const pts = points(level, Math.max(0, m.length - (won ? 1 : 0)), jokers, won);
-  $('shareText').textContent = shareText({ num, marks: m, won, streak: s.streak, t, title: isDriver ? t.shareTitleDriver : t.shareTitle,
+  $('shareText').textContent = shareText({ num, marks: m, won, streak: s.streak, t, title: MT.share,
     level: `${t[`lv_${level}`]}${jokers ? ` · ${jokers} joker${jokers > 1 ? 's' : ''}` : ''} · ${pts} ${t.pts}` });
   $('stats').innerHTML = [[s.played, 'played'], [s.played ? `${Math.round((s.won / s.played) * 100)} %` : '—', 'wonPct'], [s.streak, 'streak'], [s.best, 'best']]
     .map(([v, k]) => `<div><b>${v}</b><span>${t[k]}</span></div>`).join('');
@@ -157,12 +168,16 @@ function cardBlob() {
   g.fillStyle = '#8A95A3'; g.font = '500 30px "JetBrains Mono", monospace';
   g.fillText(`PADDOCK LIVE · ${fmt(t.num, num).toUpperCase()} · ${t[`lv_${level}`].toUpperCase()}`, 72, 110);
   g.fillStyle = '#F2F4F5'; g.font = '800 92px "Archivo Cond", "Archivo", sans-serif';
-  g.fillText((isDriver ? t.h1Driver : t.h1).toUpperCase(), 72, 210);
+  g.fillText(MT.h1.toUpperCase(), 72, 210);
   // Dessin : à droite, 420 px
   g.save(); g.translate(600, 280); g.lineWidth = 9; g.lineJoin = g.lineCap = 'round'; g.strokeStyle = won ? col('--best', '#B98CFF') : '#F2F4F5';
-  if (isDriver) {
+  if (!isCircuit) {
     g.scale(4.2, 4.2); g.lineWidth = 2.2;
-    for (const d of [...document.querySelectorAll('.helmet path')].map((x) => x.getAttribute('d'))) g.stroke(new Path2D(d));
+    const fig = { driver: '.helmet', team: '.car', race: '.flagfig svg' }[mode];
+    for (const el of document.querySelectorAll(`${fig} path, ${fig} circle`)) {
+      const path = el.tagName === 'circle' ? (() => { const c = new Path2D(); c.arc(+el.getAttribute('cx'), +el.getAttribute('cy'), +el.getAttribute('r'), 0, 2 * Math.PI); return c; })() : new Path2D(el.getAttribute('d'));
+      if (el.classList.contains('chk')) { g.fillStyle = '#F2F4F5'; g.fill(path); } else g.stroke(path);
+    }
   } else {
     const pts2 = answer.outline.split(' ').map((p) => p.split(',').map(Number));
     const seg = pts2.map((p, i) => Math.hypot(...p.map((v, k) => v - pts2[(i + 1) % pts2.length][k])));
@@ -217,7 +232,7 @@ function archivesHtml() {
     const p = plan(d), g = games[d]?.r ? games[d] : olds[d], n = d - FIRST_DAY + 1;
     const res = g?.r === 'w' ? `<span class="tag hit">${esc(t.hit)}</span>` : g?.r === 'l' ? `<span class="tag miss">${esc(t.lost)}</span>` : `<span class="tag">${esc(t.toPlay)}</span>`;
     const date = new Date(d * 864e5).toLocaleDateString(t.locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
-    rows.push(`<li><a href="?n=${n}"${d === day ? ' aria-current="page"' : ''}><span class="n">${esc(fmt(t.num, n))}</span><span class="nm">${esc(date)} · ${esc(p.mode === 'driver' ? t.modeDriver : t.modeCircuit)} · ${esc(t[`lv_${p.level}`])}</span>${res}</a></li>`);
+    rows.push(`<li><a href="?n=${n}"${d === day ? ' aria-current="page"' : ''}><span class="n">${esc(fmt(t.num, n))}</span><span class="nm">${esc(date)} · ${esc(M[p.mode].label)} · ${esc(t[`lv_${p.level}`])}</span>${res}</a></li>`);
   }
   return rows.length ? `<ol class="tries arch">${rows.join('')}</ol>` : `<p class="msg">${esc(t.archEmpty)}</p>`;
 }
@@ -361,7 +376,7 @@ function tick() {
   setTimeout(tick, 1000 - (Date.now() % 1000));
 }
 
-if (!isDriver) {
+if (isCircuit) {
   $('trkU').setAttribute('points', answer.outline);
   $('trk').setAttribute('points', answer.outline);
 }
