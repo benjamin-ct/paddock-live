@@ -135,4 +135,4 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 - Anneau de focus clavier commun à toutes les commandes (voir DESIGN_SYSTEM.md § 13).
 - Variante texte du rouge plus claire pour les petits textes sur fond sombre.
 - Légendes de 8,5–9,5 px à porter à 10 px minimum.
-- Barre du haut qui déborde à 1440 px (séance terminée chargée).
+- Barre du haut en espagnol et en italien (Télémétrie, 1600-1800 px) : une ligne lisible plutôt que deux lignes au nom de séance réduit.

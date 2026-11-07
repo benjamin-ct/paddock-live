@@ -67,16 +67,17 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .topbar {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 6px 18px;
   padding: 8px 14px;
   background: linear-gradient(180deg, var(--top-1), var(--top-2));
   border-bottom: 1px solid var(--border);
-  flex-wrap: nowrap;
+  flex-wrap: wrap;   /* jamais de débordement : ce qui ne tient plus passe à la ligne (langues aux libellés longs) */
   flex: none;
   min-width: 0;
 }
 .topbar > * { flex-shrink: 0; }
-.topbar > .session { flex-shrink: 1; min-width: 120px; }
+/* Avant de passer à la ligne, le nom de la séance se tronque (jusqu'à 120 px) et la météo cède sa place */
+.topbar > .session { flex: 100 1 120px; min-width: 120px; max-width: max-content; }
 .topbar > .spacer { flex-shrink: 1; min-width: 0; }
 
 .brand { display: flex; align-items: center; gap: 6px; font-weight: 900; letter-spacing: .5px; }
@@ -2464,7 +2465,7 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .weather-mini .wind-arrow { font-style: normal; color: var(--blue); font-weight: 800; margin-left: 2px; }
 [data-theme="pitwall"] .topbar .weather-mini { display: flex; gap: 14px; }
 /* Si la barre manque encore de place (barre latérale, infos du replay), les mesures en trop passent sur une 2e ligne masquée */
-.topbar > .weather-mini { flex-shrink: 20; min-width: 0; flex-wrap: wrap; overflow: hidden; max-height: 40px; }
+.topbar > .weather-mini { flex: 1 20 0; max-width: max-content; min-width: 0; flex-wrap: wrap; overflow: hidden; max-height: 40px; }
 /* Moins de place : pression, humidité, vent puis air disparaissent (toute la météo reste dans l'onglet Météo) */
 @media (max-width: 2100px) { [data-theme="pitwall"] .topbar .wm-pres { display: none; } }
 @media (max-width: 1960px) { [data-theme="pitwall"] .topbar .wm-hum { display: none; } }
