@@ -73,11 +73,15 @@ const T = {
     shareTitleDriver: 'Devine le pilote',
     boardTitle: 'Classement', boardLead: 'Rejoins le classement avec un pseudo : ton résultat du jour y est envoyé, puis ceux des jours suivants.',
     pseudo: 'Ton pseudo', pseudoPh: '2 à 20 caractères', join: 'Rejoindre le classement', rename: 'Changer de pseudo',
-    boardNote: 'Seuls ton pseudo et tes résultats sont envoyés au serveur de Paddock Live. Points : 6 du premier coup, 1 au sixième essai, fois 1, 2 ou 3 selon la difficulté.',
-    today: 'Aujourd\'hui', overall: 'Général', players: '{} joueurs', pts: 'pts', days: '{} j', rank: '{}e, {} pts', boardEmpty: 'Personne encore : sois le premier.',
+    boardNote: 'Seuls ton pseudo et tes résultats sont envoyés au serveur de Paddock Live.',
+    players: '{} joueurs', pts: 'pts', days: '{} j', rank: '{}e, {} pts', you: 'Toi',
+    tab_today: 'Jour', tab_week: 'Semaine', tab_month: 'Mois', tab_all: 'Général', streakTip: 'Série de {} jours',
+    mine: 'Ta partie du jour : {} pts', bonus: 'dont {} de bonus de série',
+    joker: 'Joker', jokerTitle: 'Indice suivant sans perdre d\'essai : 2 points de moins', stake: 'Points en jeu : {}',
+    jokerHint: 'Joker, {} : {}.', boardEmpty: 'Personne encore : sois le premier.',
     boardOff: 'Classement injoignable pour l\'instant.', sending: 'Envoi…', sent: 'Classement : tu joues sous le pseudo {}.', north: 'N', next: 'Prochain jeu dans {}', fresh: 'Nouveau jeu disponible', reload: 'Recharger',
     guessLabel: 'Ton essai', placeholder: 'Nom du circuit ou ville', submit: 'Valider', tries: 'Essais', hintsTitle: 'Indices',
-    hit: 'Trouvé', near: 'Même pays', miss: 'Raté', locked1: 'Après 1 erreur', locked: 'Après {} erreurs',
+    hit: 'Trouvé', near: 'Même pays', miss: 'Raté', locked1: 'Après 1 erreur ou joker', locked: 'Après {} erreurs ou jokers',
     country: 'Pays', length: 'Longueur', turns: 'Virages', first: 'Premier GP de F1', city: 'Ville',
     unknown: 'Circuit inconnu : choisis-le dans la liste.', many: 'Plusieurs circuits correspondent : précise ou choisis dans la liste.', again: 'Déjà essayé.',
     missed: 'Raté : {}.', newHint: 'Nouvel indice, {} : {}.', winOne: 'Trouvé du premier coup', win: 'Trouvé en {} essais', lose: 'Perdu, c\'était',
@@ -89,7 +93,8 @@ const T = {
     how: ['Un nouveau jeu chaque jour à minuit, heure de Paris, le même pour tout le monde : un circuit ou un pilote à deviner, en facile, moyen ou difficile.',
       'Circuit : au départ, seule une partie du tracé est visible (plus ou moins selon la difficulté). Chaque erreur dévoile un peu plus le tracé, et un indice : le pays, la longueur, le nombre de virages, l\'année du premier Grand Prix de F1, puis la ville. Les 40 circuits de la liste ont tous accueilli la F1, ou vont l\'accueillir.',
       'Pilote : 1 à 3 indices au départ selon la difficulté (débuts en F1, titres, victoires, pays, dernière écurie, initiales), un de plus à chaque erreur. Les 44 pilotes de la liste : la grille 2026 et de grands champions ; chiffres arrêtés au 7 novembre 2026.',
-      'Carré jaune : bon pays (circuit) ou même nationalité (pilote). Six essais au plus.',
+      'Carré jaune : bon pays (circuit) ou même nationalité (pilote). Six essais au plus. Le joker donne l\'indice suivant sans perdre d\'essai.',
+      'Points : 10 au départ, 1 de moins par erreur, 2 de moins par joker (au moins 1 si tu trouves, 0 si tu perds), fois 1, 2 ou 3 selon la difficulté. Bonus de série au classement : +1 par jour trouvé d\'affilée, jusqu\'à +5.',
       'Ta série reste dans ce navigateur. Rien n\'est envoyé, sauf si tu rejoins le classement : ton pseudo et tes résultats.'],
     cta: 'Chaque Grand Prix en direct, calé sur ta TV et sans spoiler', dl: 'Télécharger', ctaBtn: 'Télécharger Paddock Live', os: 'Gratuit · Windows, macOS et Linux',
     credit: 'Tracés : <a href="https://github.com/bacinger/f1-circuits">bacinger/f1-circuits</a>, © 2019-2025 Tomislav Bacinger, licence <a href="https://github.com/bacinger/f1-circuits/blob/master/LICENSE">MIT</a>. Aucune image de la Formula 1.',
@@ -109,11 +114,15 @@ const T = {
     shareTitleDriver: 'Guess the driver',
     boardTitle: 'Leaderboard', boardLead: 'Join the leaderboard with a nickname: today\'s result is sent, then the following days\' results.',
     pseudo: 'Your nickname', pseudoPh: '2 to 20 characters', join: 'Join the leaderboard', rename: 'Change nickname',
-    boardNote: 'Only your nickname and results are sent to the Paddock Live server. Points: 6 first time, 1 on the sixth guess, times 1, 2 or 3 depending on difficulty.',
-    today: 'Today', overall: 'Overall', players: '{} players', pts: 'pts', days: '{} d', rank: '#{}, {} pts', boardEmpty: 'Nobody yet: be the first.',
+    boardNote: 'Only your nickname and results are sent to the Paddock Live server.',
+    players: '{} players', pts: 'pts', days: '{} d', rank: '#{}, {} pts', you: 'You',
+    tab_today: 'Day', tab_week: 'Week', tab_month: 'Month', tab_all: 'Overall', streakTip: '{}-day streak',
+    mine: 'Today\'s game: {} pts', bonus: 'including {} streak bonus',
+    joker: 'Joker', jokerTitle: 'Next clue without losing a guess: 2 points less', stake: 'Points at stake: {}',
+    jokerHint: 'Joker, {}: {}.', boardEmpty: 'Nobody yet: be the first.',
     boardOff: 'Leaderboard unavailable for now.', sending: 'Sending…', sent: 'Leaderboard: you play as {}.', north: 'N', next: 'Next game in {}', fresh: 'New game available', reload: 'Reload',
     guessLabel: 'Your guess', placeholder: 'Circuit name or city', submit: 'Guess', tries: 'Guesses', hintsTitle: 'Clues',
-    hit: 'Correct', near: 'Same country', miss: 'Wrong', locked1: 'After 1 miss', locked: 'After {} misses',
+    hit: 'Correct', near: 'Same country', miss: 'Wrong', locked1: 'After 1 miss or joker', locked: 'After {} misses or jokers',
     country: 'Country', length: 'Length', turns: 'Turns', first: 'First F1 GP', city: 'City',
     unknown: 'Unknown circuit: pick it from the list.', many: 'Several circuits match: be more specific or pick from the list.', again: 'Already guessed.',
     missed: 'Wrong: {}.', newHint: 'New clue, {}: {}.', winOne: 'Got it first time', win: 'Got it in {} guesses', lose: 'Out of guesses, it was',
@@ -125,7 +134,8 @@ const T = {
     how: ['A new game every day at midnight, Paris time, the same for everyone: a circuit or a driver to guess, on easy, medium or hard.',
       'Circuit: at first only part of the layout is shown (more or less depending on difficulty). Every miss reveals more of the track, and a clue: the country, the length, the number of turns, the year of the first F1 Grand Prix, then the city. All 40 circuits in the list have hosted F1, or are about to.',
       'Driver: 1 to 3 clues to start with depending on difficulty (F1 debut, titles, wins, country, last team, initials), one more with every miss. The 44 drivers in the list: the 2026 grid and great champions; figures as of 7 November 2026.',
-      'Yellow square: right country (circuit) or same nationality (driver). Six guesses at most.',
+      'Yellow square: right country (circuit) or same nationality (driver). Six guesses at most. The joker gives the next clue without losing a guess.',
+      'Points: 10 to start, 1 less per miss, 2 less per joker (at least 1 if you get it, 0 if you lose), times 1, 2 or 3 depending on difficulty. Streak bonus on the leaderboard: +1 per day solved in a row, up to +5.',
       'Your streak stays in this browser. Nothing is sent unless you join the leaderboard: your nickname and results.'],
     cta: 'Every Grand Prix live, synced to your TV and spoiler-free', dl: 'Download', ctaBtn: 'Download Paddock Live', os: 'Free · Windows, macOS and Linux',
     credit: 'Track layouts: <a href="https://github.com/bacinger/f1-circuits">bacinger/f1-circuits</a>, © 2019-2025 Tomislav Bacinger, <a href="https://github.com/bacinger/f1-circuits/blob/master/LICENSE">MIT</a> licence. No Formula 1 imagery.',
@@ -137,8 +147,8 @@ const T = {
 const CLIENT = ['locale', 'num', 'next', 'fresh', 'reload', 'hit', 'near', 'miss', 'locked1', 'locked', 'country', 'length', 'turns', 'first', 'city', 'unknown', 'many', 'again',
   'missed', 'newHint', 'winOne', 'win', 'lose', 'copied', 'copyFail', 'played', 'wonPct', 'streak', 'best', 'shareTitle', 'shareStreak', 'url',
   'driverShort', 'modeCircuit', 'modeDriver', 'lv_easy', 'lv_medium', 'lv_hard', 'h1Driver', 'leadDriver', 'placeholderDriver', 'unknownDriver', 'manyDriver',
-  'nearDriver', 'debut', 'titles', 'wins', 'nat', 'team', 'initials', 'shareTitleDriver', 'today', 'overall', 'players', 'pts', 'days', 'rank', 'boardEmpty',
-  'boardOff', 'sending', 'sent'];
+  'nearDriver', 'debut', 'titles', 'wins', 'nat', 'team', 'initials', 'shareTitleDriver', 'players', 'pts', 'days', 'rank', 'you', 'boardEmpty',
+  'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -203,6 +213,16 @@ body.driver .stage .north { display: none; }
 .level[data-level="easy"] { color: var(--pb); border-color: currentColor; }
 .level[data-level="medium"] { color: var(--yellow); border-color: currentColor; }
 .level[data-level="hard"] { color: var(--red); border-color: currentColor; }
+/* Joker et points en jeu */
+.help { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.btn.small small { color: var(--red); font: 500 12px/1 var(--mono); }
+/* Classement : onglets jour, semaine, mois, général */
+.tabs { display: flex; gap: 4px; margin: 16px 0 10px; padding: 3px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); width: max-content; max-width: 100%; }
+.tabs button { min-height: 36px; padding: 0 14px; border: 0; border-radius: 6px; background: none; color: var(--text-2); font: 600 14px/1 var(--font); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.fire { color: var(--yellow); font: 500 12px/1 var(--mono); }
+.bonus { color: var(--pb); font-weight: 500; }
 /* Classement */
 .board-sec .row { margin-top: 10px; }
 .board-sec form .msg { margin-top: 0; }
@@ -210,7 +230,6 @@ body.driver .stage .north { display: none; }
 .linkish { background: none; border: 0; padding: 0; color: var(--text-2); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 #boardJoin:not([hidden]) ~ .row .linkish { display: none; }
 .me { margin: 14px 0 0; font: 600 15px/1.4 var(--font); }
-.ranks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 16px; }
 ol.rank { list-style: none; margin: 8px 0 0; padding: 0; border-top: 1px solid var(--border); }
 .rank li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 40px; border-bottom: 1px solid var(--border); }
 .rank .n { color: var(--muted); font: 500 12px/1 var(--mono); }
@@ -277,7 +296,6 @@ footer a { color: var(--text-2); text-underline-offset: 3px; }
   .eyebrow { margin-top: 32px; }
   .bar .label:first-child { display: none; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ranks { grid-template-columns: minmax(0, 1fr); }
   .cta .btn, .end .row .btn { width: 100%; }
 }
 @media (pointer: coarse) { .nav .btn { min-height: 44px; } }
@@ -349,6 +367,7 @@ ${STYLE}</style>
       <form id="form" autocomplete="off">
         <label class="label" for="guess">${esc(t.guessLabel)}</label>
         <div class="field"><input id="guess" name="guess" list="names" placeholder="${esc(t.placeholder)}" autocapitalize="words" spellcheck="false" enterkeyhint="go" required><button class="btn" type="submit">${esc(t.submit)}</button></div>
+        <div class="help"><button class="btn ghost small" type="button" id="joker" title="${esc(t.jokerTitle)}">${esc(t.joker)} <small>−2</small></button><span class="label" id="stake"></span></div>
         <p class="msg" id="msg" role="status"></p>
       </form>
       <datalist id="names">${names.map((c) => `<option value="${esc(c.name)}">${esc(c.city)}</option>`).join('')}</datalist>

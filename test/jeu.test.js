@@ -102,9 +102,9 @@ test('jeu du jour : un quart du tracé au départ, un peu plus à chaque erreur,
 });
 
 // ---------- Pilotes, difficultés et classement ----------
-import { MIX_DAY, LEVELS, plan, points, cluesShown, driverHints, REVEAL } from '../analytics/jeu/game.js';
+import { MIX_DAY, LEVELS, plan, points, streakBonus, cluesShown, driverHints, REVEAL } from '../analytics/jeu/game.js';
 import { driverData } from '../analytics/jeu/page.mjs';
-import { jeuApi, nameOk, cleanName } from '../analytics/jeu-board.js';
+import { jeuApi, nameOk, cleanName, periods } from '../analytics/jeu-board.js';
 import fs from 'node:fs';
 
 test('jeu du jour : programme (circuit ou pilote, difficulté) le même pour tous, jamais trois fois de suite le même type', () => {
@@ -126,11 +126,13 @@ test('jeu du jour : difficulté (part du tracé, indices du pilote) et points du
   assert.deepEqual([cluesShown(0, false, 'easy'), cluesShown(0, false, 'medium'), cluesShown(0, false, 'hard')], [3, 2, 1]);
   assert.equal(cluesShown(9, false, 'hard'), 6);
   assert.equal(cluesShown(0, true, 'hard'), 6);
-  assert.equal(points('easy', 1, true), 6);
-  assert.equal(points('hard', 1, true), 18);
-  assert.equal(points('medium', 6, true), 2);
-  assert.equal(points('hard', 6, false), 0);
-  assert.equal(points('hard', 7, true), 0);
+  // 10 au départ, -1 par erreur, -2 par joker, au moins 1 si trouvé, fois la difficulté
+  assert.equal(points('easy', 0, 0, true), 10);
+  assert.equal(points('hard', 0, 0, true), 30);
+  assert.equal(points('medium', 2, 1, true), 12);
+  assert.equal(points('hard', 5, 5, true), 3);   // au moins 1, fois 3
+  assert.equal(points('hard', 5, 0, false), 0);
+  assert.deepEqual([0, 1, 3, 5, 9].map(streakBonus), [0, 1, 3, 5, 5]);
 });
 
 test('jeu du jour : pilotes (indices complets, noms uniques, nationalités connues), indices dans l\'ordre', () => {
@@ -164,29 +166,44 @@ function d1() {
   return { prepare: (sql) => ({ bind: (...a) => ({ first: async () => db.prepare(sql).get(...a) ?? null, all: async () => ({ results: db.prepare(sql).all(...a) }), run: async () => db.prepare(sql).run(...a) }),
     first: async () => db.prepare(sql).get() ?? null, all: async () => ({ results: db.prepare(sql).all() }) }) };
 }
-test('jeu du jour : classement du serveur (un résultat par jour, points du jour, pseudo réservé, jours refusés)', { skip: !sqlite && 'node:sqlite absent (Node 20)' }, async () => {
-  const env = { DB: d1() }, now = Date.UTC(2026, 10, 9, 12), day = parisDay(new Date(now));
-  const send = (b, ip = '1.2.3.4') => jeuApi(new Request('https://paddocklive.app/jeu/api/score', { method: 'POST', headers: { 'CF-Connecting-IP': ip }, body: JSON.stringify(b) }), env, new URL('https://paddocklive.app/jeu/api/score'), { now });
-  const A = 'a'.repeat(24), B = 'b'.repeat(24);
-  let r = await send({ uid: A, name: 'Max', day, tries: 2, won: true });
+test('jeu du jour : périodes des classements (semaine du lundi, mois)', () => {
+  const d = parisDay(new Date(Date.UTC(2026, 10, 11, 12)));   // mercredi 11 novembre 2026
+  const p = periods(d);
+  assert.equal(new Date(p.week[0] * 864e5).toISOString().slice(0, 10), '2026-11-09');   // lundi
+  assert.equal(new Date(p.month[0] * 864e5).toISOString().slice(0, 10), '2026-11-01');
+  assert.deepEqual(p.today, [d, d]);
+});
+test('jeu du jour : classement du serveur (un résultat par jour, points, jokers, bonus de série, pseudo réservé, jours refusés)', { skip: !sqlite && 'node:sqlite absent (Node 20)' }, async () => {
+  const env = { DB: d1() }, t0 = Date.UTC(2026, 10, 9, 12);
+  const at = (k) => t0 + k * 864e5, dayOf = (k) => parisDay(new Date(at(k)));
+  const send = (b, k = 0, ip = '1.2.3.4') => jeuApi(new Request('https://paddocklive.app/jeu/api/score', { method: 'POST', headers: { 'CF-Connecting-IP': ip }, body: JSON.stringify(b) }), env, new URL('https://paddocklive.app/jeu/api/score'), { now: at(k) });
+  const A = 'a'.repeat(24), B = 'b'.repeat(24), day = dayOf(0), lv = (k) => plan(dayOf(k)).level;
+  let r = await send({ uid: A, name: 'Max', day, tries: 2, won: true, jokers: 1 });
   assert.equal(r.status, 200);
   let j = await r.json();
-  assert.equal(j.today[0].pts, points(plan(day).level, 2, true));
+  assert.equal(j.boards.today.top[0].pts, points(lv(0), 1, 1, true));
+  assert.deepEqual(j.mine, { pts: points(lv(0), 1, 1, true), bonus: 0, jokers: 1, tries: 2, won: 1, streak: 1 });
   // Deuxième envoi du même jour : le premier reste
   await send({ uid: A, name: 'Max', day, tries: 1, won: true });
-  r = await send({ uid: B, name: 'max', day, tries: 1, won: true });
-  assert.equal(r.status, 409);   // pseudo pris (sans tenir compte des majuscules)
-  r = await send({ uid: B, name: 'Leo', day, tries: 6, won: false });
-  j = await r.json();
-  assert.deepEqual(j.today.map((x) => [x.name, x.pts]), [['Max', points(plan(day).level, 2, true)], ['Leo', 0]]);
-  assert.equal(j.count, 2);
-  assert.deepEqual(j.me.day, { pts: 0, rank: 2 });
+  assert.equal((await send({ uid: B, name: 'max', day, tries: 1, won: true })).status, 409);   // pseudo pris
+  j = await (await send({ uid: B, name: 'Leo', day, tries: 6, won: false })).json();
+  assert.deepEqual(j.boards.today.top.map((x) => [x.name, x.pts]), [['Max', points(lv(0), 1, 1, true)], ['Leo', 0]]);
+  assert.equal(j.boards.today.players, 2);
+  assert.deepEqual(j.boards.today.me, { pts: 0, rank: 2 });
   for (const bad of [{ uid: B, name: 'Leo', day: day + 1, tries: 1, won: true }, { uid: B, name: 'Leo', day: day - 2, tries: 1, won: true },
-    { uid: B, name: 'Leo', day, tries: 3, won: false }, { uid: 'court', name: 'Leo', day, tries: 1, won: true }, { uid: B, name: 'connard', day, tries: 1, won: true }]) {
+    { uid: B, name: 'Leo', day, tries: 3, won: false }, { uid: 'court', name: 'Leo', day, tries: 1, won: true }, { uid: B, name: 'connard', day, tries: 1, won: true },
+    { uid: B, name: 'Leo', day, tries: 1, won: true, jokers: 9 }]) {
     assert.equal((await send(bad)).status, 400, JSON.stringify(bad));
   }
-  const g = await (await jeuApi(new Request(`https://paddocklive.app/jeu/api/board?day=${day}&uid=${A}`), env, new URL(`https://paddocklive.app/jeu/api/board?day=${day}&uid=${A}`), { now })).json();
-  assert.deepEqual(g.me.day, { pts: points(plan(day).level, 2, true), rank: 1 });
-  assert.equal(g.all[0].name, 'Max');
-  assert.equal(g.players, 2);
+  // Jours suivants : bonus de série (+1 par jour trouvé d'affilée avant, jusqu'à +5), série affichée, classement général
+  for (const k of [1, 2]) await send({ uid: A, name: 'Max', day: dayOf(k), tries: 1, won: true }, k);
+  j = await (await jeuApi(new Request(`https://paddocklive.app/jeu/api/board?day=${dayOf(2)}&uid=${A}`), env, new URL(`https://paddocklive.app/jeu/api/board?day=${dayOf(2)}&uid=${A}`), { now: at(2) })).json();
+  assert.equal(j.mine.bonus, 2);
+  assert.equal(j.mine.pts, points(lv(2), 0, 0, true) + 2);
+  assert.equal(j.boards.all.top[0].streak, 3);
+  assert.equal(j.boards.all.top[0].pts, points(lv(0), 1, 1, true) + points(lv(1), 0, 0, true) + 1 + points(lv(2), 0, 0, true) + 2);
+  assert.equal(j.boards.all.players, 2);
+  // Un jour sauté : plus de bonus
+  r = await send({ uid: A, name: 'Max', day: dayOf(4), tries: 1, won: true }, 4);
+  assert.equal((await r.json()).mine.bonus, 0);
 });

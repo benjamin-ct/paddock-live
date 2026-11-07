@@ -1,8 +1,9 @@
 // Classement du jeu du jour « Devine le circuit » (paddocklive.app/jeu/) : seulement pour qui le rejoint (pseudo choisi
-// sur la page). Un résultat par joueur et par jour, le premier envoyé ; points calculés ici avec la difficulté du jour
-// (analytics/jeu/game.js). Joueur : identifiant aléatoire gardé par son navigateur ; un pseudo appartient au premier
+// sur la page). Un résultat par joueur et par jour, le premier envoyé ; points calculés ici avec la difficulté du jour,
+// les erreurs, les jokers et le bonus de série (analytics/jeu/game.js). Classements du jour, de la semaine, du mois et
+// général, avec la série en cours de chacun. Joueur : identifiant aléatoire gardé par son navigateur ; un pseudo appartient au premier
 // identifiant qui le prend. Le jeu se joue dans le navigateur : le classement ne peut pas empêcher la triche.
-import { TRIES, plan, points, parisDay } from './jeu/game.js';
+import { TRIES, MAX_JOKERS, plan, points, streakBonus, parisDay } from './jeu/game.js';
 import { callerIp } from './quota.js';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -28,23 +29,49 @@ export function nameOk(name) {
 }
 const nameKey = (name) => fold(name) || name.toLowerCase();
 
-async function board(env, day, uid) {
-  const top = await env.DB.prepare('SELECT p.name, s.pts, s.tries, s.won FROM jeu_scores s JOIN jeu_players p ON p.uid = s.uid WHERE s.day = ? ORDER BY s.pts DESC, s.at ASC LIMIT ?').bind(day, TOP).all();
-  const all = await env.DB.prepare('SELECT p.name, SUM(s.pts) AS pts, COUNT(*) AS days FROM jeu_scores s JOIN jeu_players p ON p.uid = s.uid GROUP BY s.uid ORDER BY pts DESC, MIN(s.at) ASC LIMIT ?').bind(TOP).all();
-  const count = (await env.DB.prepare('SELECT COUNT(*) AS n FROM jeu_scores WHERE day = ?').bind(day).first())?.n || 0;
-  const players = (await env.DB.prepare('SELECT COUNT(DISTINCT uid) AS n FROM jeu_scores').first())?.n || 0;
+// Périodes des classements (jours de Paris) : le jour, la semaine (du lundi), le mois, depuis le début
+const monthStart = (day) => { const d = new Date(day * 864e5); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 864e5; };
+export const periods = (day) => ({ today: [day, day], week: [day - ((day + 3) % 7), day], month: [monthStart(day), day], all: [0, day] });
+
+// Série en cours de chaque joueur : jours trouvés d'affilée jusqu'à ce jour (ou la veille s'il n'a pas encore joué ;
+// strict : jusqu'à ce jour seulement)
+async function streaks(env, uids, day, strict = false) {
+  if (!uids.length) return {};
+  const { results } = await env.DB.prepare(`SELECT uid, day FROM jeu_results WHERE won = 1 AND day BETWEEN ? AND ? AND uid IN (${uids.map(() => '?').join(',')})`)
+    .bind(day - 400, day, ...uids).all();
+  const won = new Map();
+  for (const r of results || []) (won.get(r.uid) || won.set(r.uid, new Set()).get(r.uid)).add(r.day);
+  return Object.fromEntries(uids.map((u) => {
+    const set = won.get(u) || new Set();
+    let d = strict || set.has(day) ? day : day - 1, n = 0;
+    while (set.has(d)) { n++; d--; }
+    return [u, n];
+  }));
+}
+
+async function period(env, [from, to], uid) {
+  const top = (await env.DB.prepare(`SELECT s.uid, p.name, SUM(s.pts) AS pts, COUNT(*) AS days, MIN(s.at) AS at FROM jeu_results s JOIN jeu_players p ON p.uid = s.uid
+    WHERE s.day BETWEEN ? AND ? GROUP BY s.uid ORDER BY pts DESC, at ASC LIMIT ?`).bind(from, to, TOP).all()).results || [];
+  const players = (await env.DB.prepare('SELECT COUNT(DISTINCT uid) AS n FROM jeu_results WHERE day BETWEEN ? AND ?').bind(from, to).first())?.n || 0;
   let me = null;
   if (UID.test(uid || '')) {
-    const mine = await env.DB.prepare('SELECT s.pts, s.at, p.name FROM jeu_scores s JOIN jeu_players p ON p.uid = s.uid WHERE s.day = ? AND s.uid = ?').bind(day, uid).first();
-    const total = await env.DB.prepare('SELECT SUM(pts) AS pts, MIN(at) AS at FROM jeu_scores WHERE uid = ?').bind(uid).first();
-    if (mine || total?.pts !== null) {
-      const dayRank = mine ? (await env.DB.prepare('SELECT COUNT(*) AS n FROM jeu_scores WHERE day = ? AND (pts > ? OR (pts = ? AND at < ?))').bind(day, mine.pts, mine.pts, mine.at).first()).n + 1 : null;
-      const allRank = total?.pts !== null && total?.pts !== undefined
-        ? (await env.DB.prepare('SELECT COUNT(*) AS n FROM (SELECT SUM(pts) AS pts, MIN(at) AS at FROM jeu_scores GROUP BY uid) WHERE pts > ? OR (pts = ? AND at < ?)').bind(total.pts, total.pts, total.at).first()).n + 1 : null;
-      me = { day: mine ? { pts: mine.pts, rank: dayRank } : null, all: allRank ? { pts: total.pts, rank: allRank } : null };
+    const m = await env.DB.prepare('SELECT SUM(pts) AS pts, MIN(at) AS at FROM jeu_results WHERE uid = ? AND day BETWEEN ? AND ?').bind(uid, from, to).first();
+    if (m?.pts !== null && m?.pts !== undefined) {
+      const ahead = await env.DB.prepare(`SELECT COUNT(*) AS n FROM (SELECT SUM(pts) AS pts, MIN(at) AS at FROM jeu_results WHERE day BETWEEN ? AND ? GROUP BY uid)
+        WHERE pts > ? OR (pts = ? AND at < ?)`).bind(from, to, m.pts, m.pts, m.at).first();
+      me = { pts: m.pts, rank: (ahead?.n || 0) + 1 };
     }
   }
-  return { day, count, players, today: top.results || [], all: all.results || [], me };
+  return { players, top, me };
+}
+
+async function board(env, day, uid) {
+  const out = {};
+  for (const [k, range] of Object.entries(periods(day))) out[k] = await period(env, range, uid);
+  const st = await streaks(env, [...new Set([...Object.values(out).flatMap((b) => b.top.map((r) => r.uid)), ...(UID.test(uid || '') ? [uid] : [])])], day);
+  for (const b of Object.values(out)) b.top = b.top.map(({ uid: u, name, pts, days }) => ({ name, pts, days, streak: st[u] || 0 }));
+  const mine = UID.test(uid || '') ? await env.DB.prepare('SELECT pts, bonus, jokers, tries, won FROM jeu_results WHERE day = ? AND uid = ?').bind(day, uid).first() : null;
+  return { day, boards: out, mine: mine ? { ...mine, streak: st[uid] || 0 } : null };
 }
 
 export async function jeuApi(req, env, url, { now = Date.now() } = {}) {
@@ -58,9 +85,10 @@ export async function jeuApi(req, env, url, { now = Date.now() } = {}) {
   if (url.pathname === '/jeu/api/score' && req.method === 'POST') {
     if (Number(req.headers.get('Content-Length') || 0) > 2048) return json({ error: 'Envoi trop gros' }, 413);
     const b = await req.json().catch(() => null);
-    const day = Number(b?.day), tries = Number(b?.tries), won = b?.won === true;
+    const day = Number(b?.day), tries = Number(b?.tries), won = b?.won === true, jokers = Number(b?.jokers ?? 0);
     // Jour de Paris en cours, ou la veille (partie finie juste après minuit)
-    if (!b || !UID.test(b.uid || '') || !Number.isInteger(day) || day < today - 1 || day > today || !Number.isInteger(tries) || tries < 1 || tries > TRIES || (!won && tries !== TRIES)) {
+    if (!b || !UID.test(b.uid || '') || !Number.isInteger(day) || day < today - 1 || day > today || !Number.isInteger(tries) || tries < 1 || tries > TRIES || (!won && tries !== TRIES)
+      || !Number.isInteger(jokers) || jokers < 0 || jokers > MAX_JOKERS) {
       return json({ error: 'Résultat illisible' }, 400);
     }
     const name = cleanName(b.name);
@@ -76,9 +104,12 @@ export async function jeuApi(req, env, url, { now = Date.now() } = {}) {
     if (owner && owner.uid !== b.uid) return json({ error: 'Ce pseudo est déjà pris : choisis-en un autre', code: 'name' }, 409);
     await env.DB.prepare('INSERT INTO jeu_players (uid, name, nkey, at) VALUES (?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET name = excluded.name, nkey = excluded.nkey')
       .bind(b.uid, name, key, now).run();
-    const pts = points(plan(day).level, tries, won);
-    await env.DB.prepare('INSERT INTO jeu_scores (day, uid, pts, tries, won, at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(day, uid) DO NOTHING')
-      .bind(day, b.uid, pts, tries, won ? 1 : 0, now).run();
+    // Bonus de série : jours trouvés d'affilée juste avant celui-ci (au classement)
+    const before = won ? (await streaks(env, [b.uid], day - 1, true))[b.uid] || 0 : 0;
+    const bonus = won ? streakBonus(before) : 0;
+    const pts = points(plan(day).level, tries - (won ? 1 : 0), jokers, won) + bonus;
+    await env.DB.prepare('INSERT INTO jeu_results (day, uid, pts, bonus, tries, jokers, won, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(day, uid) DO NOTHING')
+      .bind(day, b.uid, pts, bonus, tries, jokers, won ? 1 : 0, now).run();
     return json({ ok: true, name, ...(await board(env, day, b.uid)) });
   }
   return json({ error: 'Introuvable' }, 404);
