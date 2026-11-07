@@ -1,7 +1,7 @@
 // Page du jeu du jour (/jeu/, /en/guess-the-circuit/) : circuit ou pilote du jour, essais, indices, partage, série et
 // classement. Tracés, pilotes et textes dans la page (analytics/jeu/page.mjs) ; partie et série dans ce navigateur
 // (localStorage) ; seulement pour qui rejoint le classement : pseudo et résultat envoyés au serveur (/jeu/api/).
-import { TRIES, FIRST_DAY, parisDay, dailyIndex, hints, driverHints, mark, stats, shareText, revealed, revealStart, cluesShown, plan } from './game.js';
+import { TRIES, FIRST_DAY, MAX_JOKERS, parisDay, dailyIndex, hints, driverHints, mark, stats, shareText, revealed, revealStart, cluesShown, plan, points } from './game.js';
 
 const { t, circuits, drivers } = JSON.parse(document.getElementById('data').textContent);
 const $ = (id) => document.getElementById(id);
@@ -57,13 +57,13 @@ let shown = { tries: game.g.length, hints: null };
 
 function render() {
   const m = marks(), done = Boolean(game.r);
-  const misses = m.filter((x) => x !== 'hit').length;
+  const misses = m.filter((x) => x !== 'hit').length, jokers = game.j || 0, helps = misses + jokers;
   $('tries').innerHTML = Array.from({ length: TRIES }, (_, i) => {
     const c = byId.get(game.g[i]);
     return `<li class="${c ? 'on' : ''}${i >= shown.tries && c ? ' new' : ''}"><span class="n">${i + 1}</span><span class="nm">${c ? esc(c.name) : '—'}</span>${c ? `<span class="tag ${m[i]}">${isDriver && m[i] === 'near' ? t.nearDriver : t[m[i]]}</span>` : ''}</li>`;
   }).join('');
   const list = clues();
-  const open = isDriver ? cluesShown(misses, done, level) : (done ? 5 : Math.min(misses, 5));
+  const open = isDriver ? cluesShown(helps, done, level) : (done ? 5 : Math.min(helps, 5));
   const flagAt = isDriver ? 3 : 0;   // pays du pilote, pays du circuit
   const startOpen = isDriver ? cluesShown(0, false, level) : 0;
   $('hints').innerHTML = list.map(([label, value], i) => {
@@ -75,13 +75,17 @@ function render() {
   shown = { tries: game.g.length, hints: open };
   // Circuit : seulement une partie du tracé au départ, dévoilée au fil des erreurs (trait du tour, longueur 1 : pathLength)
   if (!isDriver) {
-    const f = revealed(misses, done, level);
+    const f = revealed(helps, done, level);
     for (const el of [$('trk'), $('trkU')]) {
       el.style.strokeDasharray = f < 1 ? `${f} ${1 - f}` : 'none';
       el.style.strokeDashoffset = f < 1 ? String(-revealStart(today)) : '0';
     }
   }
   $('form').hidden = done;
+  // Joker : l'indice suivant sans perdre d'essai, 2 points de moins ; points encore possibles
+  const left = isDriver ? 6 - open : 5 - open;
+  $('joker').disabled = done || left <= 0 || jokers >= MAX_JOKERS;
+  $('stake').textContent = fmt(t.stake, points(level, misses, jokers, true));
   if (!done) return;
   const won = game.r === 'w';
   $('track').classList.toggle('won', won);
@@ -91,7 +95,9 @@ function render() {
   $('end').hidden = false;
   $('endH').textContent = won ? (m.length === 1 ? t.winOne : fmt(t.win, m.length)) : `${t.lose} ${answer.name}`;
   const s = stats(games, today);
-  $('shareText').textContent = shareText({ num, marks: m, won, streak: s.streak, t, title: isDriver ? t.shareTitleDriver : t.shareTitle, level: t[`lv_${level}`] });
+  const pts = points(level, Math.max(0, m.length - (won ? 1 : 0)), jokers, won);
+  $('shareText').textContent = shareText({ num, marks: m, won, streak: s.streak, t, title: isDriver ? t.shareTitleDriver : t.shareTitle,
+    level: `${t[`lv_${level}`]}${jokers ? ` · ${jokers} joker${jokers > 1 ? 's' : ''}` : ''} · ${pts} ${t.pts}` });
   $('stats').innerHTML = [[s.played, 'played'], [s.played ? `${Math.round((s.won / s.played) * 100)} %` : '—', 'wonPct'], [s.streak, 'streak'], [s.best, 'best']]
     .map(([v, k]) => `<div><b>${v}</b><span>${t[k]}</span></div>`).join('');
   boardShow();
@@ -128,18 +134,41 @@ $('share').addEventListener('click', async () => {
   }
 });
 
+$('joker').addEventListener('click', () => {
+  if (game.r || $('joker').disabled) return;
+  const before = shown.hints;
+  game.j = (game.j || 0) + 1;
+  save();
+  render();
+  const h = clues()[before];
+  $('msg').textContent = h ? fmt(t.jokerHint, h[0], h[1]) : '';
+  $('guess').focus();
+});
+
 // ---------- Classement : facultatif ; une fois rejoint (pseudo), chaque partie finie y est envoyée ----------
 let player = null;
 try { player = JSON.parse(localStorage.getItem(PLAYER)); } catch { /* stockage refusé */ }
 const newUid = () => [...crypto.getRandomValues(new Uint8Array(24))].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
 const rankTxt = (r) => (r ? fmt(t.rank, r.rank, r.pts) : '');
+const TABS = ['today', 'week', 'month', 'all'];
+let tab = 'today', last = null;
 function boardHtml(b) {
-  const rows = (list, total) => (list.length ? `<ol class="rank">${list.map((r, i) => `<li><span class="n">${i + 1}</span><span class="nm">${esc(r.name)}</span><span class="pts">${r.pts}<small> ${t.pts}</small>${total ? `<em>${fmt(t.days, r.days)}</em>` : ''}</span></li>`).join('')}</ol>`
-    : `<p class="msg">${esc(t.boardEmpty)}</p>`);
-  const me = b.me ? `<p class="me">${[b.me.day ? `${t.today} : ${rankTxt(b.me.day)}` : '', b.me.all ? `${t.overall} : ${rankTxt(b.me.all)}` : ''].filter(Boolean).map(esc).join(' · ')}</p>` : '';
-  return `${me}<div class="ranks"><div><p class="label">${esc(t.today)} · ${esc(fmt(t.players, b.count))}</p>${rows(b.today, false)}</div>
-    <div><p class="label">${esc(t.overall)} · ${esc(fmt(t.players, b.players))}</p>${rows(b.all, true)}</div></div>`;
+  last = b;
+  const cur = b.boards?.[tab];
+  if (!cur) return '';
+  const tabs = `<div class="tabs" role="tablist">${TABS.map((k) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === tab}">${esc(t[`tab_${k}`])}</button>`).join('')}</div>`;
+  const rows = cur.top.length ? `<ol class="rank">${cur.top.map((r, i) => `<li><span class="n">${i + 1}</span><span class="nm">${esc(r.name)}${r.streak > 1 ? ` <span class="fire" title="${esc(fmt(t.streakTip, r.streak))}">🔥${r.streak}</span>` : ''}</span><span class="pts">${r.pts}<small> ${t.pts}</small>${tab !== 'today' ? `<em>${fmt(t.days, r.days)}</em>` : ''}</span></li>`).join('')}</ol>`
+    : `<p class="msg">${esc(t.boardEmpty)}</p>`;
+  const mine = b.mine ? `<p class="me">${esc(fmt(t.mine, b.mine.pts))}${b.mine.bonus ? ` <span class="bonus">${esc(fmt(t.bonus, b.mine.bonus))}</span>` : ''}${b.mine.streak > 1 ? ` · 🔥 ${esc(fmt(t.streakTip, b.mine.streak))}` : ''}</p>` : '';
+  return `${mine}${tabs}<p class="label">${esc(fmt(t.players, cur.players))}${cur.me ? ` · ${esc(t.you)} : ${esc(rankTxt(cur.me))}` : ''}</p>${rows}`;
 }
+$('boardBody').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (!b || !last) return;
+  tab = b.dataset.tab;
+  $('boardBody').innerHTML = boardHtml(last);
+  $('boardBody').querySelector(`[data-tab="${tab}"]`)?.focus();
+});
 async function boardLoad() {
   try {
     const r = await fetch(`/jeu/api/board?day=${today}${player?.uid ? `&uid=${player.uid}` : ''}`);
@@ -152,7 +181,7 @@ async function boardSend(name) {
   const uid = player?.uid || newUid();
   try {
     const r = await fetch('/jeu/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, name, day: today, tries: game.g.length, won: game.r === 'w' }) });
+      body: JSON.stringify({ uid, name, day: today, tries: game.g.length, won: game.r === 'w', jokers: game.j || 0 }) });
     const b = await r.json().catch(() => ({}));
     if (!r.ok) { msg.textContent = b.error || t.boardOff; if (b.code === 'name') { $('boardJoin').hidden = false; $('pseudo').focus(); } return; }
     player = { uid, name: b.name };

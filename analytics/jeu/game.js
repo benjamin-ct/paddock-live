@@ -52,8 +52,12 @@ export function plan(day) {
   return { mode: a, level: LEVELS[Math.floor(mix(day) / 2) % 3] };
 }
 
-// Points du classement : essais restants (6 du premier coup, 1 au sixième), fois 1, 2 ou 3 selon la difficulté ; 0 si perdu
-export const points = (level, tries, won) => (won && tries >= 1 && tries <= TRIES ? (TRIES - tries + 1) * (LEVELS.indexOf(level) + 1) : 0);
+// Points : 10 au départ, moins 1 par erreur (elle donne un indice) et 2 par joker (indice suivant sans perdre d'essai),
+// au moins 1 si trouvé, 0 si perdu ; fois 1, 2 ou 3 selon la difficulté. Bonus de série (serveur) : +1 par jour trouvé
+// d'affilée avant celui-ci, jusqu'à +5
+export const MAX_JOKERS = 5;
+export const points = (level, misses, jokers, won) => (won ? Math.max(1, 10 - misses - 2 * jokers) * (LEVELS.indexOf(level) + 1) : 0);
+export const streakBonus = (before) => Math.min(5, Math.max(0, before));
 
 // Part du tracé visible au départ, puis après chaque erreur, selon la difficulté ; tout en fin de partie
 export const REVEAL = { easy: [0.4, 0.55, 0.7, 0.85, 0.95], medium: [0.25, 0.4, 0.55, 0.7, 0.85], hard: [0.12, 0.25, 0.4, 0.55, 0.7] };

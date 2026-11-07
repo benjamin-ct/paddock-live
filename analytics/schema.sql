@@ -90,9 +90,13 @@ CREATE TABLE IF NOT EXISTS push_sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL);
 
 -- Classement du jeu du jour (paddocklive.app/jeu/, analytics/jeu-board.js) : joueurs qui l'ont rejoint (identifiant
 -- aléatoire du navigateur, pseudo ; nkey : pseudo sans accents ni majuscules, pris par un seul joueur), un résultat par
--- joueur et par jour (jour de Paris, comme le jeu), envois par adresse et par jour
+-- joueur et par jour (jour de Paris, comme le jeu ; points bonus de série compris, jokers utilisés), envois par adresse
+-- et par jour. jeu_scores : première forme des résultats (7 nov. 2026, sans jokers ni bonus), reprise dans jeu_results
 CREATE TABLE IF NOT EXISTS jeu_players (uid TEXT PRIMARY KEY, name TEXT NOT NULL, nkey TEXT NOT NULL UNIQUE, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS jeu_scores (day INTEGER NOT NULL, uid TEXT NOT NULL, pts INTEGER NOT NULL, tries INTEGER NOT NULL, won INTEGER NOT NULL,
   at INTEGER NOT NULL, PRIMARY KEY (day, uid));
-CREATE INDEX IF NOT EXISTS jeu_scores_uid ON jeu_scores (uid);
+CREATE TABLE IF NOT EXISTS jeu_results (day INTEGER NOT NULL, uid TEXT NOT NULL, pts INTEGER NOT NULL, bonus INTEGER NOT NULL, tries INTEGER NOT NULL,
+  jokers INTEGER NOT NULL, won INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (day, uid));
+CREATE INDEX IF NOT EXISTS jeu_results_uid ON jeu_results (uid, day);
+INSERT OR IGNORE INTO jeu_results (day, uid, pts, bonus, tries, jokers, won, at) SELECT day, uid, pts, 0, tries, 0, won, at FROM jeu_scores;
 CREATE TABLE IF NOT EXISTS jeu_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
