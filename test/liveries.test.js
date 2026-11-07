@@ -38,11 +38,13 @@ test('livrées spéciales : image de l\'annonce lue une fois, sans image si le s
   const asked = [];
   const fetchFn = async (u) => {
     asked.push(u);
-    return /refus/.test(u) ? new Response('', { status: 403 }) : new Response('<html><head><meta property="og:image" content="https://img.test/livree.jpg"></head></html>');
+    return /refus/.test(u) ? new Response('', { status: 403 }) : new Response('<html><head><meta property="og:image" content="https://site.test/social/default-share.jpg"></head><body><article><h1>Livrée</h1><figure><img src="https://img.test/livree.jpg" width="1600" height="900"></figure><p>Texte de l article sur la livrée spéciale.</p></article></body></html>');
   };
   const [y] = Object.keys(LIVERIES);
   const real = LIVERIES[y];
-  LIVERIES[9999] = [{ ...real[0], year: 9999, url: 'https://ecurie.test/livree' }, { ...real[0], year: 9999, round: 2, url: 'https://refus.test/livree' }];
+  const base = { ...real[0] };
+  delete base.image;
+  LIVERIES[9999] = [{ ...base, year: 9999, url: 'https://ecurie.test/livree' }, { ...base, year: 9999, round: 2, url: 'https://refus.test/livree' }];
   try {
     const a = await liveriesWeb(9999, { fetchFn });
     assert.deepEqual(a.liveries.map((l) => l.image), ['https://img.test/livree.jpg', '']);
