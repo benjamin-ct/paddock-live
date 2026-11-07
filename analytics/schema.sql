@@ -100,3 +100,7 @@ CREATE TABLE IF NOT EXISTS jeu_results (day INTEGER NOT NULL, uid TEXT NOT NULL,
 CREATE INDEX IF NOT EXISTS jeu_results_uid ON jeu_results (uid, day);
 INSERT OR IGNORE INTO jeu_results (day, uid, pts, bonus, tries, jokers, won, at) SELECT day, uid, pts, 0, tries, 0, won, at FROM jeu_scores;
 CREATE TABLE IF NOT EXISTS jeu_new (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));
+-- Classements entre amis du jeu du jour : groupes (lien /jeu/?g=<id> à partager), membres
+CREATE TABLE IF NOT EXISTS jeu_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS jeu_members (grp TEXT NOT NULL, uid TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (grp, uid));
+CREATE INDEX IF NOT EXISTS jeu_members_uid ON jeu_members (uid);
