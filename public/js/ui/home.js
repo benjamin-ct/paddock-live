@@ -12,6 +12,7 @@ import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
 import { openResults } from './results-view.js';
 import { COUNTRY_ISO } from '/shared/country-iso.js';
+import { nearestShape, shapeOutline } from '/shared/circuit-shapes.js';
 import { cloudTranslate } from '../cloud.js';
 import { upcomingAgenda, localDay } from '/shared/agenda.js';
 import { openf1TestDays, testState } from '/shared/testing.js';
@@ -167,6 +168,10 @@ function testDaysHtml(ts) {
   return `<div class="cal-days hm-tests">${tests.map((d, i) => `<div class="cal-day"><div class="cal-day-h">${esc(dayOf(d.day, { weekday: 'short', day: 'numeric', month: 'short' }))}</div>
     <div class="cal-s${d === ts.current ? ' now' : i < at ? ' past' : ''}"><span>${esc(testDay(d.n))}</span><b>${d.start ? `${nightMark(d.start)}${hm(d.start)}` : `<span title="${t('Horaire pas encore annoncé')}">–</span>`}</b></div></div>`).join('')}</div>`;
 }
+
+// Tracés des circuits (tuile Calendrier de l'Accueil, comme le Calendrier de la Saison), chargés à la demande
+let shapes = null, shapeList = null;
+const loadShapes = () => (shapes ??= fetch('/data/f1-circuits.json').then((r) => r.json()).then((d) => (shapeList = d.circuits || [])).catch(() => []));
 
 // Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
 async function loadWeather(nx) {
