@@ -10,6 +10,8 @@ const today = parisDay();
 const askN = Number(new URLSearchParams(location.search).get('n'));
 const day = Number.isInteger(askN) && askN >= 1 && FIRST_DAY + askN - 1 < today ? FIRST_DAY + askN - 1 : today;
 const archive = day !== today;
+// Lien d'invitation à un classement entre amis : ?g=<groupe>
+const invited = /^[a-z0-9]{8}$/.test(new URLSearchParams(location.search).get('g') || '') ? new URLSearchParams(location.search).get('g') : null;
 const { mode, level } = plan(day);
 const isDriver = mode === 'driver';
 const pool = isDriver ? drivers : circuits.filter((c) => c.turns);   // circuits : indices complets
@@ -18,7 +20,7 @@ const items = isDriver ? drivers : circuits;
 const byId = new Map(items.map((c) => [c.id, c]));
 const natOf = new Map(drivers.map((d) => [d.id, d.iso]));
 const same = isDriver ? (a, b) => natOf.get(a) === natOf.get(b) : undefined;
-const KEY = 'pl-jeu-circuit', PLAYER = 'pl-jeu-joueur', OLD = 'pl-jeu-archives';
+const KEY = 'pl-jeu-circuit', PLAYER = 'pl-jeu-joueur', OLD = 'pl-jeu-archives', GROUPS = 'pl-jeu-groupes';
 const load = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };   // stockage refusé : partie d'un seul affichage
 let games = load(KEY), olds = load(OLD);
 const store = archive ? olds : games;
@@ -220,6 +222,12 @@ function archivesHtml() {
   return rows.length ? `<ol class="tries arch">${rows.join('')}</ol>` : `<p class="msg">${esc(t.archEmpty)}</p>`;
 }
 $('archList').innerHTML = archivesHtml();
+// Lien d'invitation reçu : nom du groupe en tête de page
+if (invited) {
+  fetch(`/jeu/api/board?day=${today}&g=${invited}`).then((r) => r.json()).then((b) => {
+    if (b.group) { $('inviteNote').hidden = false; $('inviteNote').textContent = fmt(t.invited, b.group.name); }
+  }).catch(() => {});
+}
 if (archive) {
   document.body.classList.add('archive');
   $('archTag').hidden = false;
@@ -248,13 +256,39 @@ function boardHtml(b) {
   last = b;
   const cur = b.boards?.[tab];
   if (!cur) return '';
+  const scopes = `<div class="scopes">${[['', t.everyone], ...groups.map((x) => [x.id, x.name])].map(([id, n]) => `<button type="button" class="chip" data-scope="${id}" aria-pressed="${id === scope}">${esc(n)}</button>`).join('')}<button type="button" class="chip add" id="groupNew">${esc(t.groupNew)}</button></div>`;
+  const ginfo = b.group ? `<div class="ginfo"><span class="label">${esc(fmt(t.groupMembers, b.group.members))}</span><button type="button" class="linkish" id="groupShare">${esc(t.groupInvite)}</button><button type="button" class="linkish" id="groupLeave">${esc(t.groupLeave)}</button></div>` : '';
   const tabs = `<div class="tabs" role="tablist">${TABS.map((k) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === tab}">${esc(t[`tab_${k}`])}</button>`).join('')}</div>`;
   const rows = cur.top.length ? `<ol class="rank">${cur.top.map((r, i) => `<li><span class="n">${i + 1}</span><span class="nm">${esc(r.name)}${r.streak > 1 ? ` <span class="fire" title="${esc(fmt(t.streakTip, r.streak))}">🔥${r.streak}</span>` : ''}</span><span class="pts">${r.pts}<small> ${t.pts}</small>${tab !== 'today' ? `<em>${fmt(t.days, r.days)}</em>` : ''}</span></li>`).join('')}</ol>`
     : `<p class="msg">${esc(t.boardEmpty)}</p>`;
   const mine = b.mine ? `<p class="me">${esc(fmt(t.mine, b.mine.pts))}${b.mine.bonus ? ` <span class="bonus">${esc(fmt(t.bonus, b.mine.bonus))}</span>` : ''}${b.mine.streak > 1 ? ` · 🔥 ${esc(fmt(t.streakTip, b.mine.streak))}` : ''}</p>` : '';
-  return `${mine}${tabs}<p class="label">${esc(fmt(t.players, cur.players))}${cur.me ? ` · ${esc(t.you)} : ${esc(rankTxt(cur.me))}` : ''}</p>${rows}`;
+  return `${mine}${scopes}${ginfo}${tabs}<p class="label">${esc(fmt(t.players, cur.players))}${cur.me ? ` · ${esc(t.you)} : ${esc(rankTxt(cur.me))}` : ''}</p>${rows}`;
 }
-$('boardBody').addEventListener('click', (e) => {
+// Groupes d'amis de ce navigateur : [{ id, name }] ; lien reçu (?g=) : rejoint dès qu'on a un pseudo
+const loadGroups = () => { try { return JSON.parse(localStorage.getItem(GROUPS)) || []; } catch { return []; } };
+let groups = loadGroups();
+const saveGroups = () => { try { localStorage.setItem(GROUPS, JSON.stringify(groups)); } catch { /* stockage refusé */ } };
+let scope = invited || '';
+const keepGroup = (g) => { if (g && !groups.some((x) => x.id === g.id)) { groups.push({ id: g.id, name: g.name }); saveGroups(); } };
+const inviteUrl = (id) => `${location.origin}${location.pathname}?g=${id}`;
+async function groupApi(body) {
+  const r = await fetch('/jeu/api/group', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: player?.uid, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || t.boardOff);
+  return j;
+}
+$('boardBody').addEventListener('click', async (e) => {
+  const sc = e.target.closest('[data-scope]');
+  if (sc) { scope = sc.dataset.scope; boardLoad(); return; }
+  if (e.target.closest('#groupNew')) {
+    if (!player) { $('boardMsg').textContent = t.groupNeedName; $('boardJoin').hidden = false; $('pseudo').focus(); return; }
+    $('groupForm').hidden = false; $('groupName').focus(); return;
+  }
+  if (e.target.closest('#groupShare')) { shareLink(inviteUrl(scope)); return; }
+  if (e.target.closest('#groupLeave')) {
+    try { await groupApi({ action: 'leave', g: scope }); } catch (err) { $('boardMsg').textContent = err.message; return; }
+    groups = groups.filter((x) => x.id !== scope); saveGroups(); scope = ''; boardLoad(); return;
+  }
   const b = e.target.closest('[data-tab]');
   if (!b || !last) return;
   tab = b.dataset.tab;
@@ -263,17 +297,37 @@ $('boardBody').addEventListener('click', (e) => {
 });
 async function boardLoad() {
   try {
-    const r = await fetch(`/jeu/api/board?day=${today}${player?.uid ? `&uid=${player.uid}` : ''}`);
-    if (r.ok) $('boardBody').innerHTML = boardHtml(await r.json());
-  } catch { $('boardBody').innerHTML = `<p class="msg">${esc(t.boardOff)}</p>`; }
+    // Lien d'invitation : entrée dans le groupe (joueur déjà inscrit)
+    if (invited && player && !groups.some((x) => x.id === invited)) keepGroup((await groupApi({ action: 'join', g: invited })).group);
+    const r = await fetch(`/jeu/api/board?day=${today}${player?.uid ? `&uid=${player.uid}` : ''}${scope ? `&g=${scope}` : ''}`);
+    const b = await r.json().catch(() => ({}));
+    if (r.ok) { if (b.group) keepGroup(b.group); $('boardBody').innerHTML = boardHtml(b); }
+    else if (scope) { $('boardMsg').textContent = b.error || t.boardOff; groups = groups.filter((x) => x.id !== scope); saveGroups(); scope = ''; boardLoad(); }
+  } catch (err) { $('boardBody').innerHTML = `<p class="msg">${esc(err.message || t.boardOff)}</p>`; }
 }
+async function shareLink(url) {
+  try {
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) { await navigator.share({ url, text: t.groupShareText }); return; }
+    await navigator.clipboard.writeText(url);
+    $('boardMsg').textContent = t.linkCopied;
+  } catch (e) { if (e?.name !== 'AbortError') $('boardMsg').textContent = url; }
+}
+$('groupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const g = (await groupApi({ name: $('groupName').value })).group;
+    keepGroup(g); scope = g.id; $('groupForm').hidden = true; $('groupName').value = '';
+    await boardLoad();
+    shareLink(inviteUrl(g.id));
+  } catch (err) { $('boardMsg').textContent = err.message; $('groupName').focus(); }
+});
 async function boardSend(name) {
   const msg = $('boardMsg');
   msg.textContent = t.sending;
   const uid = player?.uid || newUid();
   try {
     const r = await fetch('/jeu/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, name, day: today, tries: game.g.length, won: game.r === 'w', jokers: game.j || 0 }) });
+      body: JSON.stringify({ uid, name, day: today, tries: game.g.length, won: game.r === 'w', jokers: game.j || 0, ...(invited ? { g: invited } : {}) }) });
     const b = await r.json().catch(() => ({}));
     if (!r.ok) { msg.textContent = b.error || t.boardOff; if (b.code === 'name') { $('boardJoin').hidden = false; $('pseudo').focus(); } return; }
     player = { uid, name: b.name };
@@ -282,7 +336,8 @@ async function boardSend(name) {
     save();
     msg.textContent = fmt(t.sent, b.name);
     $('boardJoin').hidden = true;
-    $('boardBody').innerHTML = boardHtml(b);
+    if (b.group) keepGroup(b.group);
+    boardLoad();
   } catch { msg.textContent = t.boardOff; }
 }
 function boardShow() {

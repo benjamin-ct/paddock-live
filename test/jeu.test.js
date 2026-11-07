@@ -207,3 +207,28 @@ test('jeu du jour : classement du serveur (un résultat par jour, points, jokers
   r = await send({ uid: A, name: 'Max', day: dayOf(4), tries: 1, won: true }, 4);
   assert.equal((await r.json()).mine.bonus, 0);
 });
+
+test('jeu du jour : classement entre amis (groupe créé par un joueur inscrit, lien, classement des seuls membres, sortie)', { skip: !sqlite && 'node:sqlite absent (Node 20)' }, async () => {
+  const env = { DB: d1() }, now = Date.UTC(2026, 10, 9, 12), day = parisDay(new Date(now));
+  const call = (path, body) => jeuApi(new Request(`https://paddocklive.app${path}`, body ? { method: 'POST', headers: { 'CF-Connecting-IP': '9.9.9.9' }, body: JSON.stringify(body) } : {}), env, new URL(`https://paddocklive.app${path}`), { now });
+  const [A, B, C] = ['a', 'b', 'c'].map((x) => x.repeat(24));
+  assert.equal((await call('/jeu/api/group', { uid: A, name: 'Potes' })).status, 403);   // pas encore de pseudo
+  for (const [uid, name, tries] of [[A, 'Max', 1], [B, 'Leo', 2], [C, 'Zoe', 3]]) await call('/jeu/api/score', { uid, name, day, tries, won: true });
+  assert.equal((await call('/jeu/api/group', { uid: A, name: 'connard' })).status, 400);
+  const g = (await (await call('/jeu/api/group', { uid: A, name: 'Les potes' })).json()).group;
+  assert.match(g.id, /^[a-z0-9]{8}$/);
+  assert.deepEqual([g.name, g.members, g.member], ['Les potes', 1, true]);
+  assert.equal((await (await call('/jeu/api/group', { uid: C, action: 'join', g: g.id })).json()).group.members, 2);
+  let b = await (await call(`/jeu/api/board?day=${day}&uid=${C}&g=${g.id}`)).json();
+  assert.deepEqual(b.boards.today.top.map((x) => x.name), ['Max', 'Zoe']);   // Leo n'est pas dans le groupe
+  assert.deepEqual(b.boards.today.me.rank, 2);
+  assert.equal(b.group.member, true);
+  assert.equal((await call(`/jeu/api/board?day=${day}&g=zzzzzzzz`)).status, 404);
+  await call('/jeu/api/group', { uid: C, action: 'leave', g: g.id });
+  b = await (await call(`/jeu/api/board?day=${day}&g=${g.id}`)).json();
+  assert.deepEqual(b.boards.today.top.map((x) => x.name), ['Max']);
+  // Envoi d'un résultat avec le lien d'invitation : entrée dans le groupe
+  await call('/jeu/api/score', { uid: B, name: 'Leo', day, tries: 2, won: true, g: g.id });
+  b = await (await call(`/jeu/api/board?day=${day}&g=${g.id}`)).json();
+  assert.deepEqual(b.boards.today.top.map((x) => x.name), ['Max', 'Leo']);
+});

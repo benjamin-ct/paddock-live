@@ -79,6 +79,10 @@ const T = {
     mine: 'Ta partie du jour : {} pts', bonus: 'dont {} de bonus de série',
     joker: 'Joker', jokerTitle: 'Indice suivant sans perdre d\'essai : 2 points de moins', stake: 'Points en jeu : {}',
     jokerHint: 'Joker, {} : {}.',
+    everyone: 'Tous les joueurs', groupNew: '+ Groupe d\'amis', groupMembers: '{} membres', groupInvite: 'Inviter (lien)', groupLeave: 'Quitter le groupe',
+    groupNeedName: 'Choisis d\'abord un pseudo pour créer un groupe.', groupShareText: 'Rejoins mon classement du jeu du jour de Paddock Live',
+    linkCopied: 'Lien copié : envoie-le à tes amis.', groupName: 'Nom du groupe', groupNamePh: 'Les potes du paddock', groupCreate: 'Créer le groupe',
+    invited: 'Invitation au classement « {} » : fais la partie du jour, puis rejoins le classement pour y entrer.',
     imgBtn: 'Image à partager', imgSaved: 'Image enregistrée.', lost: 'Perdu', toPlay: 'À jouer',
     archTitle: 'Jours précédents', archLead: 'Rejoue les jours que tu as manqués : sans points, sans série et hors classement.', archEmpty: 'Pas encore de jour précédent.',
     archTag: 'Archives', archBack: 'Revenir au jeu du jour', archNote: 'Partie des archives : pas de points, ni de série, ni de classement.', boardEmpty: 'Personne encore : sois le premier.',
@@ -123,6 +127,10 @@ const T = {
     mine: 'Today\'s game: {} pts', bonus: 'including {} streak bonus',
     joker: 'Joker', jokerTitle: 'Next clue without losing a guess: 2 points less', stake: 'Points at stake: {}',
     jokerHint: 'Joker, {}: {}.',
+    everyone: 'All players', groupNew: '+ Friends group', groupMembers: '{} members', groupInvite: 'Invite (link)', groupLeave: 'Leave group',
+    groupNeedName: 'Pick a nickname first to create a group.', groupShareText: 'Join my leaderboard for the Paddock Live daily game',
+    linkCopied: 'Link copied: send it to your friends.', groupName: 'Group name', groupNamePh: 'Paddock pals', groupCreate: 'Create group',
+    invited: 'Invitation to the « {} » leaderboard: play today\'s game, then join the leaderboard to get in.',
     imgBtn: 'Image to share', imgSaved: 'Image saved.', lost: 'Lost', toPlay: 'To play',
     archTitle: 'Previous days', archLead: 'Replay the days you missed: no points, no streak and off the leaderboard.', archEmpty: 'No previous day yet.',
     archTag: 'Archive', archBack: 'Back to today\'s game', archNote: 'Archive game: no points, no streak and no leaderboard.', boardEmpty: 'Nobody yet: be the first.',
@@ -154,7 +162,8 @@ const CLIENT = ['locale', 'num', 'next', 'fresh', 'reload', 'hit', 'near', 'miss
   'missed', 'newHint', 'winOne', 'win', 'lose', 'copied', 'copyFail', 'played', 'wonPct', 'streak', 'best', 'shareTitle', 'shareStreak', 'url',
   'driverShort', 'modeCircuit', 'modeDriver', 'lv_easy', 'lv_medium', 'lv_hard', 'h1Driver', 'leadDriver', 'placeholderDriver', 'unknownDriver', 'manyDriver',
   'nearDriver', 'debut', 'titles', 'wins', 'nat', 'team', 'initials', 'shareTitleDriver', 'players', 'pts', 'days', 'rank', 'you', 'boardEmpty',
-  'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint', 'h1', 'imgSaved', 'lost', 'toPlay', 'archEmpty'];
+  'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint', 'h1', 'imgSaved', 'lost', 'toPlay', 'archEmpty',
+  'everyone', 'groupNew', 'groupMembers', 'groupInvite', 'groupLeave', 'groupNeedName', 'groupShareText', 'linkCopied', 'invited'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -219,6 +228,14 @@ body.driver .stage .north { display: none; }
 .level[data-level="easy"] { color: var(--pb); border-color: currentColor; }
 .level[data-level="medium"] { color: var(--yellow); border-color: currentColor; }
 .level[data-level="hard"] { color: var(--red); border-color: currentColor; }
+/* Groupes d'amis */
+.invite { margin: 16px 0 0; padding: 12px 14px; border: 1px solid var(--best); border-radius: 8px; color: var(--text); background: var(--panel); }
+.scopes { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 0; }
+.chip { min-height: 36px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 999px; background: none; color: var(--text-2); font: 600 13px/1 var(--font); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--text); color: var(--text); background: var(--panel-3); }
+.chip.add { border-style: dashed; }
+.ginfo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 10px; }
+#groupForm { margin-top: 12px; }
 /* Archives */
 .arch-tag { color: var(--best); border-color: currentColor; }
 #archBack { margin: 10px 0 0; }
@@ -368,6 +385,7 @@ ${STYLE}</style>
   <p id="archBack" hidden><a class="linkish" href="./">${esc(t.archBack)}</a></p>
   <h1 id="h1">${esc(t.h1)}</h1>
   <p class="lead" id="lead">${esc(t.lead)}</p>
+  <p class="invite" id="inviteNote" role="status" hidden></p>
   <div class="board">
     <figure class="track" id="track">
       <div class="bar"><span class="label" id="trackShort">${esc(t.trackShort)}</span><span class="label" id="clock" aria-live="off"></span></div>
@@ -408,6 +426,10 @@ ${STYLE}</style>
       <p class="msg small">${esc(t.boardNote)}</p>
     </form>
     <div class="row"><span class="msg" id="boardMsg" role="status"></span><button class="linkish" type="button" id="boardRename">${esc(t.rename)}</button></div>
+    <form id="groupForm" autocomplete="off" hidden>
+      <label class="label" for="groupName">${esc(t.groupName)}</label>
+      <div class="field"><input id="groupName" maxlength="20" minlength="2" placeholder="${esc(t.groupNamePh)}" required><button class="btn" type="submit">${esc(t.groupCreate)}</button></div>
+    </form>
     <div id="boardBody"></div>
   </section>
   <h2>${esc(t.archTitle)}</h2>
