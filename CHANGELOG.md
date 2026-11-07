@@ -16,6 +16,11 @@ l'application (Réglages → À propos → Nouveautés).
   nombre de livrées. Les nouvelles livrées s'ajoutent au fil de la saison, sans mise à jour de l'appli.
 - Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
 
+### Affichage
+- Ordinateur : la barre du haut ne déborde plus à droite (boutons coupés) entre 1366 et 1920 px, surtout en
+  espagnol, en italien et dans les designs Paddock 2 et Classique ; ce qui ne tient pas passe sur une deuxième ligne,
+  et l'Accueil, la Saison ou l'Actu s'ouvrent juste dessous.
+
 ### Carte 3D
 - Aileron actif 2026 : en ligne droite, les volets de l'aileron arrière et de l'aileron avant s'ouvrent, puis se
   referment au freinage. La F1 ne transmet plus le DRS ni le mode ligne droite : l'ouverture est estimée d'après la

@@ -116,8 +116,8 @@
   @media (prefers-reduced-motion: no-preference) { :root[data-design="v3"]:not([data-motion="off"]) .topbar .tb-tools.open { animation: v3-pop var(--dur-3) var(--ease-out); } }
 }
 @media (min-width: 1180px) {
-  :root[data-design="v3"] .topbar { flex-wrap: nowrap; }
-  :root[data-design="v3"] .topbar .session { min-width: 0; flex: 0 1 auto; }
+  :root[data-design="v3"] .topbar { flex-wrap: wrap; }   /* une ligne tant qu'elle tient, sinon deux (pas de débordement) */
+  :root[data-design="v3"] .topbar .session { min-width: 0; flex: 100 1 0; }   /* le nom se tronque avant tout passage à la ligne */
 }
 @media (min-width: 901px) and (max-width: 1439px) {
   :root[data-design="v3"] .topbar .delay .preset { width: 30px; max-width: 30px; min-width: 30px; padding-left: 0; padding-right: 0; color: transparent; background-position: center; }

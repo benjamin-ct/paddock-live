@@ -221,7 +221,11 @@ export function placeView(view) {
   view.style.top = `${Math.round(top.getBoundingClientRect().bottom)}px`;
   // Barre du bas (pas le rail de gauche du téléphone en paysage, en Télémétrie)
   view.style.bottom = nav && !nav.hidden && nav.offsetWidth > nav.offsetHeight ? `${nav.offsetHeight}px` : '';
+  // Barre du haut passée sur deux lignes (ou revenue sur une) : la vue la suit
+  if (!placed.size) new ResizeObserver(() => placed.forEach((v) => { if (!v.hidden) placeView(v); })).observe(document.querySelector('.topbar'));
+  placed.add(view);
 }
+const placed = new Set();
 
 // Écran de chargement du démarrage (index.html) : retiré en fondu une fois l'accueil ou le tableau de bord prêt
 export function hideBoot() {

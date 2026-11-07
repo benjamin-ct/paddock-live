@@ -370,7 +370,7 @@ Point de rupture principal : **900 px** (`max-width: 900px` / `min-width: 901px`
 
 | Largeur | Ce qui change |
 |---|---|
-| > 1600 px … 2100 px | paliers de la barre du haut (libellés masqués progressivement : 2100, 1950, 1800, 1600, 1450, 1360 px) |
+| > 1600 px … 2100 px | paliers de la barre du haut (libellés masqués progressivement : 2100, 1950, 1800, 1600, 1450, 1360 px) ; ce qui ne tient toujours pas passe sur une deuxième ligne (`flex-wrap: wrap`, jamais de débordement), le nom de la séance et la météo se réduisant d'abord |
 | ≤ 1250 / 1100 / 1000 px | grilles des panneaux et de la Saison resserrées |
 | ≤ 900 px | mise en page téléphone |
 | ≤ 760 / 700 / 640 / 600 px | tableaux et cartes de la Saison sur une colonne, textes sur deux lignes |
@@ -444,7 +444,8 @@ Ces points sont des pistes relevées pendant l'audit, **pas des règles en produ
    Des variables (`--fs-*`, `--sp-*`, `--r-*`) faciliteraient la cohérence — chantier à part, risque de régressions
    visuelles dans les trois designs.
 5. **Tailles minimales** : légendes à 8,5–9,5 px (barre latérale, barre du bas étroite) ; viser 10 px minimum.
-6. **Barre du haut à 1440 px** : à 1440×900 (séance terminée chargée, français ou anglais), la page déborde de
-   ~90 px à droite (`#sourceBadge`, `#muteBtn`, carte radio). Vérifier les paliers de la barre du haut.
+6. **Barre du haut en espagnol et en italien (Télémétrie)** : de 1600 à 1800 px, la barre passe sur deux lignes et
+   le nom de la séance est réduit à presque rien (libellés des outils et du délai plus longs). Plus de débordement
+   depuis la v1.33 (la barre passe à la ligne), mais une seule ligne lisible demanderait des paliers propres à ces langues.
 7. **Contraste sur verre** : mesurer les textes `--muted` sur les panneaux translucides au-dessus des halos les plus
    clairs (clair surtout).
