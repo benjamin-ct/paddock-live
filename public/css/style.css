@@ -1306,6 +1306,9 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .cal-s { flex-wrap: wrap; row-gap: 1px; }
 .cal-why { flex-basis: 100%; contain: inline-size; color: var(--muted); font-size: 11.5px; font-weight: 400; line-height: 1.3; }
 [data-notes="off"] .cal-why { display: none; }   /* Réglages → Affichage : explications pour les débutants coupées */
+.cal-notes-tog { align-self: center; margin-top: 6px; font-size: 12px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.cal-notes-tog:hover { color: var(--text); }
+[data-notes="off"] .cal-notes-tog .nt-on, :root:not([data-notes="off"]) .cal-notes-tog .nt-off { display: none; }
 .cal-key .ic { width: 11px; height: 11px; margin-right: 4px; vertical-align: -1px; fill: currentColor; }
 /* Téléphone : jours en pleine largeur, la phrase tient sur une ligne */
 @media (max-width: 600px) { .cal-days { flex-flow: column nowrap !important; width: 100%; } }

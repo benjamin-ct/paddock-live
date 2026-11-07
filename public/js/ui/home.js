@@ -108,8 +108,11 @@ function daysHtml(nx) {
   }
   const hm = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
   return `<div class="cal-days">${[...days.values()].map((d) => `<div class="cal-day"><div class="cal-day-h">${esc(new Date(d.t).toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric' }))}</div>
-    ${d.list.map((s) => calSession(s.label, nightMark(s.t) + hm(s.t), `${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}`, sprint)).join('')}</div>`).join('')}</div>`;
+    ${d.list.map((s) => calSession(s.label, nightMark(s.t) + hm(s.t), `${s.t < Date.now() ? 'past' : ''} ${s === nx ? 'now' : ''}`, sprint)).join('')}</div>`).join('')}</div>
+    <button type="button" class="linkish cal-notes-tog" data-notes-tog><span class="nt-on">Masquer les explications</span><span class="nt-off">Afficher les explications</span></button>`;
 }
+// Explications sous les séances : lien sous le programme (appli et version web, qui n'a pas la fenêtre Réglages)
+document.addEventListener('click', (e) => { if (e.target.closest('[data-notes-tog]')) setPref('sessionNotes', prefs.sessionNotes === false); });
 const gp = (name) => gpShort(name, LANG);
 
 // Intersaison : prochaines dates annoncées officiellement (présentations, lancement de la saison, essais ; liste tenue

@@ -2142,6 +2142,8 @@ export default {
   "Suivre Paddock Live sur les réseaux": "Sigue a Paddock Live en redes",
   "Jeu du jour : devine le circuit": "Juego del día: adivina el circuito",
   "Devine le circuit": "Adivina el circuito",
+  "Masquer les explications": "Ocultar las explicaciones",
+  "Afficher les explications": "Mostrar las explicaciones",
   "Explications pour les débutants (programme du week-end)": "Explicaciones para principiantes (programa del fin de semana)",
   "Phrase courte sous chaque séance du programme du week-end (Accueil, calendrier) : à quoi elle sert": "Una frase corta bajo cada sesión del programa del fin de semana (Inicio, calendario): para qué sirve",
   "Pas de séance en direct": "Ninguna sesión en directo",
