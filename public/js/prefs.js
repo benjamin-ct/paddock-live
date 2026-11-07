@@ -159,6 +159,7 @@ applyTextScale();
 applyContrast();
 document.documentElement.dataset.cvd = prefs.colorblind ? 'on' : 'off';   // mode daltonien (style.css, carte)
 document.documentElement.dataset.notes = prefs.sessionNotes === false ? 'off' : 'on';   // explications du programme (style.css)
+document.documentElement.dataset.logos = prefs.teamLogos ? 'on' : 'off';   // logos des écuries (design-v3.css)
 systemContrast?.addEventListener?.('change', () => { applyContrast(); emit('prefs', 'contrast'); });
 applyScheme();
 systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
@@ -167,6 +168,7 @@ systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') a
 function applyTeamColors() {
   setVividTeams(prefs.vividTeams);
   setTeamLogos(prefs.teamLogos);
+  document.documentElement.dataset.logos = prefs.teamLogos ? 'on' : 'off';   // logos ou traits de couleur (design-v3.css)
   setLogoColor(prefs.logoColor);
   touch('DriverList');
 }

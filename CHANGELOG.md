@@ -13,15 +13,14 @@ l'application (Réglages → À propos → Nouveautés).
   programme (aussi dans la version web), ou Réglages → Affichage dans l'appli.
 
 ### Saison
-- Écuries : les livrées spéciales de chaque écurie, de 2018 à aujourd'hui (127 au total), sur sa page : photo de
-  l'annonce, Grand Prix, thème, et lien vers l'annonce officielle ou l'article. Chaque carte d'écurie indique son
-  nombre de livrées. Les nouvelles livrées s'ajoutent au fil de la saison, sans mise à jour de l'appli.
 - Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
 
 ### Affichage
 - Un seul design, Télémétrie : Paddock 2 et Classique ne sont plus proposés (Réglages → Affichage n'a plus le choix
   « Design »). Les applis qui les utilisaient passent sur Télémétrie, avec le Fil de course à la place de Radios et
   Messages si les panneaux n'avaient pas été changés ; une disposition choisie à la main est gardée.
+- Logos des écuries de retour avec Télémétrie (classement, Accueil, Saison, Course au titre), où un simple trait de
+  couleur les remplaçait. Décocher Réglages → Affichage → « Logos des écuries » remet les traits.
 - Ordinateur : la barre du haut ne déborde plus à droite (boutons coupés) entre 1366 et 1920 px, surtout en
   espagnol et en italien ; ce qui ne tient pas passe sur une deuxième ligne, et l'Accueil, la Saison ou l'Actu
   s'ouvrent juste dessous.
@@ -45,6 +44,8 @@ l'application (Réglages → À propos → Nouveautés).
 - Comparaison, tour en cours : le chrono, l'écart et les courbes avancent en continu, à chaque image, au lieu de
   sauter une fois par seconde, et le chrono ne recule plus d'un instant quand un nouveau calcul arrive.
 - Fenêtre de la Comparaison seule : le nom de l'onglet est de nouveau aligné avec son soulignement.
+- Fil de course : la radio en cours de lecture a sa barre d'avancement, à la couleur de l'écurie, avec le temps
+  écoulé et la durée ; un clic sur la barre saute à cet endroit.
 
 ### Version web
 - Radios d'équipe : le son est pris directement chez la F1 par le téléphone ou l'ordinateur.

@@ -64,8 +64,9 @@ pixel, couleurs réservées à la course, un seul accent (rouge Paddock) pour ce
   les ombres ne servent qu'aux calques flottants (menus, modales, notifications).
 - **Éditorial autour du direct** : titres en Archivo étroit 800 capitales, kickers en JetBrains Mono capitales,
   chiffres d'affichage étroits, beaucoup d'air.
-- **Écuries en traits** : la couleur officielle (`--tc`) en trait vertical de 3 px (classement, tableaux) ou en filet
-  haut de 3 px (cartes), plus de pastilles blanches.
+- **Écuries** : logo officiel en pastille (`.team-logo`, réglage « Logos des écuries », coché d'office, depuis la 1.33 :
+  classement, Accueil, Saison) ; réglage décoché (`html[data-logos="off"]`) : la couleur officielle (`--tc`) en trait
+  vertical de 3 px. Cartes : filet haut de 3 px.
 - **Sombre par défaut**, clair complet : la barre de séance, la barre latérale et la barre du replay suivent
   l'apparence (fond `--bg`). Seuls les overlays de streaming restent toujours sombres.
 

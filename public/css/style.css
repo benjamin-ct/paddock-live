@@ -4095,6 +4095,13 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 .rf-radio.playing { background: var(--panel-2); box-shadow: inset 2px 0 0 var(--accent); }
 .rf-play { padding: 2px 6px; font-size: 15px; color: var(--text-2); }
 .rf-radio.playing .rf-play { color: var(--text); }
+/* Radio en cours dans le Fil de course : barre d'avancement (clic : saut à cet endroit) et temps écoulé / durée */
+.rf-progress { grid-column: 2 / -1; display: flex; align-items: center; gap: 8px; }
+.rf-prog { flex: 1; position: relative; height: 14px; cursor: pointer; }
+.rf-prog::before, .rf-prog i { content: ''; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 999px; }
+.rf-prog::before { background: color-mix(in srgb, var(--k, var(--accent)) 25%, var(--line)); }
+.rf-prog i { background: var(--k, var(--accent)); transform-origin: left; transform: scaleX(0); }
+.rf-time { min-width: 72px; text-align: right; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 @media (max-width: 1000px) { .p-race { height: 460px; } }
 /* Saison : titres des groupes de rubriques, seulement en Télémétrie (design-v3.css) */
 #szNav .sz-grp { display: none; }

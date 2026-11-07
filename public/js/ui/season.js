@@ -84,9 +84,12 @@ async function loadPrev() {
   if (section === 'drivers' && !$('#seasonView').hidden) { animate(); render(); }
 }
 // Livrées spéciales de l'année affichée (serveur de Paddock Live : données vérifiées, image de l'annonce), lues une fois
+// shortcut: livrées mises de côté le 7 nov. (doublons, livrées manquantes, cartes à revoir) : rien n'est lu ni affiché
+// tant que LIVERIES est faux ; le serveur garde ses données (/live/api/season/liveries)
+const LIVERIES = false;
 let liv = null;
 async function loadLiveries(y) {
-  if (liv?.year === y) return;
+  if (!LIVERIES || liv?.year === y) return;
   liv = { year: y, loading: true };
   try { liv = await api(`/api/season/liveries?year=${y}`); } catch (err) { liv = { year: y, error: err.message }; }
   if (['teams', 'h2h'].includes(section) && !$('#seasonView').hidden) render();
@@ -96,7 +99,7 @@ const liveriesOf = (teamId) => (liv?.year === data.year && Array.isArray(liv.liv
 // lien vers l'annonce. Textes en français, en anglais dans les autres langues
 function liveriesBox(teamId, name) {
   loadLiveries(data.year);
-  if (!liv || liv.year !== data.year || liv.loading || liv.error) return '';
+  if (!LIVERIES || !liv || liv.year !== data.year || liv.loading || liv.error) return '';
   const list = liveriesOf(teamId).sort((a, b) => a.round - b.round);
   const fr = LANG === 'fr';
   const cards = list.map((l) => {
