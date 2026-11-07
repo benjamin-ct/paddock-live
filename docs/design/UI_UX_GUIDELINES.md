@@ -56,7 +56,8 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
   (`.btn`, `.btn-accent`, `.btn.small`, `.tab`, `.tab-seg`, `.note`, `.toast`, `.modal`) ; ne jamais écrire une
   couleur de surface ou de texte en dur dans un composant (elle casserait l'apparence claire).
 - Nouveau style propre à Télémétrie : dans `design-v3.css`, préfixé `:root[data-design="v3"]`.
-- Barre du haut, barre du replay et overlays de streaming : **toujours sombres**.
+- Overlays de streaming : **toujours sombres**. Barre de séance, barre latérale et barre du replay suivent l'apparence
+  (fond `--bg`).
 - Couleur d'écurie : passer `--tc` sur l'élément ; en clair, passer par `onLight()` (`shared/colors.js`).
 - Titres : condensés (Saira Condensed) ; texte courant en Titillium Web ; temps et écarts en JetBrains Mono.
 - Icônes : SVG à trait (`stroke: currentColor`, 1,7 px, extrémités arrondies) de `public/js/icons.js`, décoratives en
@@ -132,7 +133,10 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 
 ## 10. Pistes d'amélioration (non appliquées)
 
-- Anneau de focus clavier commun à toutes les commandes (voir DESIGN_SYSTEM.md § 13).
-- Variante texte du rouge plus claire pour les petits textes sur fond sombre.
-- Légendes de 8,5–9,5 px à porter à 10 px minimum.
-- Barre du haut en espagnol et en italien (Télémétrie, 1600-1800 px) : une ligne lisible plutôt que deux lignes au nom de séance réduit.
+Détail et mesures : DESIGN_SYSTEM.md § 13.
+
+- Courbes des graphiques en `--data` plutôt qu'en bleu écrit en dur.
+- Libellés de 9,5 à 10,5 px (barre de séance, étiquettes, en-têtes de tableau) à porter à 11 px.
+- Contours des contrôles (`--line-2`) à 3:1 hors contraste renforcé.
+- Barre de séance en espagnol et en italien pendant une séance (1600-1800 px) : une ligne lisible plutôt que deux
+  lignes au nom de séance réduit.
