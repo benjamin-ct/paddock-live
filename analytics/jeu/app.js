@@ -6,25 +6,30 @@ import { TRIES, FIRST_DAY, MAX_JOKERS, parisDay, dailyIndex, hints, driverHints,
 const { t, circuits, drivers } = JSON.parse(document.getElementById('data').textContent);
 const $ = (id) => document.getElementById(id);
 const today = parisDay();
-const { mode, level } = plan(today);
+// Archives : ?n=<numéro> rejoue un jour passé, sans points, sans série ni classement (partie gardée à part)
+const askN = Number(new URLSearchParams(location.search).get('n'));
+const day = Number.isInteger(askN) && askN >= 1 && FIRST_DAY + askN - 1 < today ? FIRST_DAY + askN - 1 : today;
+const archive = day !== today;
+const { mode, level } = plan(day);
 const isDriver = mode === 'driver';
 const pool = isDriver ? drivers : circuits.filter((c) => c.turns);   // circuits : indices complets
-const answer = pool[dailyIndex(today, pool.length)];
+const answer = pool[dailyIndex(day, pool.length)];
 const items = isDriver ? drivers : circuits;
 const byId = new Map(items.map((c) => [c.id, c]));
 const natOf = new Map(drivers.map((d) => [d.id, d.iso]));
 const same = isDriver ? (a, b) => natOf.get(a) === natOf.get(b) : undefined;
-const KEY = 'pl-jeu-circuit', PLAYER = 'pl-jeu-joueur';
-
-let games = {};
-try { games = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { /* stockage refusé : partie d'un seul affichage */ }
-const game = games[today] || (games[today] = { g: [] });
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(games)); } catch { /* idem */ } };
+const KEY = 'pl-jeu-circuit', PLAYER = 'pl-jeu-joueur', OLD = 'pl-jeu-archives';
+const load = (k) => { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } };   // stockage refusé : partie d'un seul affichage
+let games = load(KEY), olds = load(OLD);
+const store = archive ? olds : games;
+// Jour passé déjà joué le jour même : son résultat, tel quel
+const game = (archive && games[day]?.r) ? games[day] : store[day] || (store[day] = { g: [] });
+const save = () => { try { localStorage.setItem(archive ? OLD : KEY, JSON.stringify(store)); } catch { /* idem */ } };
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fmt = (s, ...v) => v.reduce((x, y) => x.replace('{}', y), s);
 const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const num = today - FIRST_DAY + 1;
+const num = day - FIRST_DAY + 1;
 
 // Programme du jour : type et difficulté en tête de page, titre et saisie du bon type
 $('num').textContent = `· ${fmt(t.num, num)} · ${isDriver ? t.modeDriver : t.modeCircuit}`;
@@ -78,7 +83,7 @@ function render() {
     const f = revealed(helps, done, level);
     for (const el of [$('trk'), $('trkU')]) {
       el.style.strokeDasharray = f < 1 ? `${f} ${1 - f}` : 'none';
-      el.style.strokeDashoffset = f < 1 ? String(-revealStart(today)) : '0';
+      el.style.strokeDashoffset = f < 1 ? String(-revealStart(day)) : '0';
     }
   }
   $('form').hidden = done;
@@ -95,6 +100,8 @@ function render() {
   $('end').hidden = false;
   $('endH').textContent = won ? (m.length === 1 ? t.winOne : fmt(t.win, m.length)) : `${t.lose} ${answer.name}`;
   const s = stats(games, today);
+  for (const id of ['stats', 'shareText', 'shareRow']) $(id).hidden = archive;
+  if (archive) { $('archNote').hidden = false; return; }
   const pts = points(level, Math.max(0, m.length - (won ? 1 : 0)), jokers, won);
   $('shareText').textContent = shareText({ num, marks: m, won, streak: s.streak, t, title: isDriver ? t.shareTitleDriver : t.shareTitle,
     level: `${t[`lv_${level}`]}${jokers ? ` · ${jokers} joker${jokers > 1 ? 's' : ''}` : ''} · ${pts} ${t.pts}` });
@@ -133,6 +140,91 @@ $('share').addEventListener('click', async () => {
     if (e?.name !== 'AbortError') $('shareMsg').textContent = t.copyFail;
   }
 });
+
+// Image du résultat : dessin maison (aucune image de la F1), sans la réponse : seulement le morceau de tracé visible au
+// départ pour tous (circuit) ou le casque (pilote), les carrés des essais, les points et la série
+function cardBlob() {
+  const W = 1080, cv = document.createElement('canvas');
+  cv.width = W; cv.height = W;
+  const g = cv.getContext('2d'), css = getComputedStyle(document.documentElement);
+  const col = (v, d) => css.getPropertyValue(v).trim() || d;
+  const m = marks(), won = game.r === 'w', jokers = game.j || 0, s = stats(games, today);
+  const pts = points(level, Math.max(0, m.length - (won ? 1 : 0)), jokers, won);
+  g.fillStyle = '#0B0F15'; g.fillRect(0, 0, W, W);
+  g.fillStyle = '#E10600'; g.fillRect(0, 0, W, 14);
+  g.fillStyle = '#8A95A3'; g.font = '500 30px "JetBrains Mono", monospace';
+  g.fillText(`PADDOCK LIVE · ${fmt(t.num, num).toUpperCase()} · ${t[`lv_${level}`].toUpperCase()}`, 72, 110);
+  g.fillStyle = '#F2F4F5'; g.font = '800 92px "Archivo Cond", "Archivo", sans-serif';
+  g.fillText((isDriver ? t.h1Driver : t.h1).toUpperCase(), 72, 210);
+  // Dessin : à droite, 420 px
+  g.save(); g.translate(600, 280); g.lineWidth = 9; g.lineJoin = g.lineCap = 'round'; g.strokeStyle = won ? col('--best', '#B98CFF') : '#F2F4F5';
+  if (isDriver) {
+    g.scale(4.2, 4.2); g.lineWidth = 2.2;
+    for (const d of [...document.querySelectorAll('.helmet path')].map((x) => x.getAttribute('d'))) g.stroke(new Path2D(d));
+  } else {
+    const pts2 = answer.outline.split(' ').map((p) => p.split(',').map(Number));
+    const seg = pts2.map((p, i) => Math.hypot(...p.map((v, k) => v - pts2[(i + 1) % pts2.length][k])));
+    const total = seg.reduce((a, b) => a + b, 0);
+    let from = revealStart(day) * total, len = revealed(0, false, level) * total, acc = 0;
+    g.scale(4.2, 4.2); g.lineWidth = 2.2; g.beginPath();
+    let started = false;
+    for (let k = 0; k < pts2.length * 2 && len > 0; k++) {
+      const i = k % pts2.length, a = pts2[i], b = pts2[(i + 1) % pts2.length], L = seg[i];
+      if (acc + L > from) {
+        const t0 = Math.max(0, (from - acc) / L), t1 = Math.min(1, (from - acc + len) / L);
+        const pa = [a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0], pb = [a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1];
+        if (!started) { g.moveTo(...pa); started = true; }
+        g.lineTo(...pb);
+        len -= (t1 - t0) * L; from = acc + L;
+      }
+      acc += L;
+    }
+    g.stroke();
+  }
+  g.restore();
+  // Carrés des essais, résultat, points, série
+  const C = { hit: '#3DDC84', near: '#FFD43B', miss: '#FF5A5F' };
+  m.forEach((x, i) => { g.fillStyle = C[x]; g.fillRect(72 + i * 86, 760, 70, 70); });
+  for (let i = m.length; i < TRIES; i++) { g.strokeStyle = '#2E3946'; g.lineWidth = 4; g.strokeRect(74 + i * 86, 762, 66, 66); }
+  g.fillStyle = '#F2F4F5'; g.font = '800 64px "Archivo Cond", "Archivo", sans-serif';
+  g.fillText(`${won ? `${m.length}/${TRIES}` : `X/${TRIES}`} · ${pts} ${t.pts.toUpperCase()}`, 72, 930);
+  g.fillStyle = '#B4BDC8'; g.font = '400 34px "Archivo", sans-serif';
+  g.fillText([jokers ? `${jokers} joker${jokers > 1 ? 's' : ''}` : '', s.streak > 1 ? `🔥 ${fmt(t.streakTip, s.streak)}` : ''].filter(Boolean).join(' · '), 72, 985);
+  g.fillStyle = '#8A95A3'; g.font = '500 30px "JetBrains Mono", monospace';
+  g.fillText(t.url, 72, 1040);
+  return new Promise((res) => cv.toBlob(res, 'image/png'));
+}
+$('shareImg').addEventListener('click', async () => {
+  await document.fonts.ready;
+  const blob = await cardBlob();
+  if (!blob) return;
+  const file = new File([blob], `paddock-live-jeu-${num}.png`, { type: 'image/png' });
+  try {
+    if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], text: $('shareText').textContent }); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: file.name });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  $('shareMsg').textContent = t.imgSaved;
+});
+
+// Archives : les 14 jours d'avant, rejouables (résultat du jeu du jour, ou de la partie des archives)
+function archivesHtml() {
+  const rows = [];
+  for (let d = today - 1; d >= Math.max(FIRST_DAY, today - 14); d--) {
+    const p = plan(d), g = games[d]?.r ? games[d] : olds[d], n = d - FIRST_DAY + 1;
+    const res = g?.r === 'w' ? `<span class="tag hit">${esc(t.hit)}</span>` : g?.r === 'l' ? `<span class="tag miss">${esc(t.lost)}</span>` : `<span class="tag">${esc(t.toPlay)}</span>`;
+    const date = new Date(d * 864e5).toLocaleDateString(t.locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+    rows.push(`<li><a href="?n=${n}"${d === day ? ' aria-current="page"' : ''}><span class="n">${esc(fmt(t.num, n))}</span><span class="nm">${esc(date)} · ${esc(p.mode === 'driver' ? t.modeDriver : t.modeCircuit)} · ${esc(t[`lv_${p.level}`])}</span>${res}</a></li>`);
+  }
+  return rows.length ? `<ol class="tries arch">${rows.join('')}</ol>` : `<p class="msg">${esc(t.archEmpty)}</p>`;
+}
+$('archList').innerHTML = archivesHtml();
+if (archive) {
+  document.body.classList.add('archive');
+  $('archTag').hidden = false;
+  $('archBack').hidden = false;
+}
 
 $('joker').addEventListener('click', () => {
   if (game.r || $('joker').disabled) return;
