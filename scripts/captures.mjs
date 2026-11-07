@@ -1,6 +1,6 @@
 // Captures d'écran pour les audits visuels (UX Reviewer, UI Designer) : l'appli en téléphone, tablette et ordinateur,
 // en sombre et en clair, avec le serveur local de test (rien n'est envoyé au Worker en production).
-//   node scripts/captures.mjs [chemin…] [--design=v2|broadcast|classic] [--lang=fr|en|it|es] [--out=dossier]
+//   node scripts/captures.mjs [chemin…] [--lang=fr|en|it|es] [--out=dossier]
 // Sans chemin : « / » (Accueil). Images dans --out (par défaut .cache/captures/, ignoré par git) ; débordements
 // horizontaux et erreurs de page affichés. Utilise le Playwright préinstallé (aucune dépendance ajoutée au projet).
 import { spawn } from 'node:child_process';
@@ -14,7 +14,7 @@ const args = process.argv.slice(2);
 const opt = (k, d) => args.find((a) => a.startsWith(`--${k}=`))?.split('=')[1] || d;
 const pages = args.filter((a) => !a.startsWith('--'));
 if (!pages.length) pages.push('/');
-const design = opt('design', 'v2'), lang = opt('lang', 'fr'), out = path.resolve(opt('out', path.join(root, '.cache/captures')));
+const lang = opt('lang', 'fr'), out = path.resolve(opt('out', path.join(root, '.cache/captures')));
 const port = Number(process.env.PORT) || 3099;
 
 let chromium;
@@ -40,7 +40,7 @@ for (const p of pages) {
   for (const [name, { width, height, ...dev }] of sizes) {
     for (const scheme of ['dark', 'light']) {
       const ctx = await b.newContext({ viewport: { width, height }, deviceScaleFactor: 1, colorScheme: scheme, locale: lang, ...dev });
-      await ctx.addInitScript((pr) => localStorage.setItem('paddock.prefs', JSON.stringify(pr)), { welcomed: true, lang, design, designV: 1 });
+      await ctx.addInitScript((pr) => localStorage.setItem('paddock.prefs', JSON.stringify(pr)), { welcomed: true, lang });
       const page = await ctx.newPage();
       const errs = [];
       page.on('pageerror', (e) => errs.push(e.message));

@@ -48,8 +48,8 @@ function layoutMenu(btn) {
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
   // Fenêtres à ouvrir (Circuit, Analyse, Duel, Comparaison seule), puis dispositions enregistrées et réglages
-  // Télémétrie (sans menu « Plus ») : le mini-classement aussi, grisé sans séance comme son bouton
-  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison'], ...(v3() ? [['mini', 'Mini-classement']] : [])];
+  // Le mini-classement aussi (pas de menu « Plus »), grisé sans séance comme son bouton
+  const wins = [['map', 'Circuit'], ['analysis', 'Analyse'], ['duel', 'Duel'], ['compare', 'Comparaison'], ['mini', 'Mini-classement']];
   menu.innerHTML = `<div class="muted small">Ouvrir dans une fenêtre</div>${wins.map(([id, name]) => `<button data-open="${id}"${id === 'mini' && $('#miniBtn')?.disabled ? ' disabled' : ''}>${icon(id === 'mini' ? 'window' : 'external')} ${name}</button>`).join('')}
     ${list.length ? `<div class="rail-sep"></div><div class="muted small">Dispositions enregistrées</div>${list.map((w, i) => `<button data-w="${i}">${icon('layout')} <span data-no-i18n>${esc(w.name)}</span></button>`).join('')}` : ''}<div class="rail-sep"></div><button data-w="set">${icon('sliders')} Réglages de la disposition</button>`;
   const r = btn.getBoundingClientRect();
@@ -134,8 +134,8 @@ function sync() {
   const replays = !$('#replayView')?.hidden;
   const results = isResultsOpen();
   const page = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : null;
-  // Télémétrie : Résultats est une vue de la séance (contrôle segmenté du Direct), Direct ou Replays restent allumés
-  const cur = (page === 'results' && v3() ? null : page) || (store.status?.source?.mode === 'replay' ? 'replay' : 'live');
+  // Résultats est une vue de la séance (contrôle segmenté du Direct), Direct ou Replays restent allumés
+  const cur = (page === 'results' ? null : page) || (store.status?.source?.mode === 'replay' ? 'replay' : 'live');
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
   if (!page) startWindows();
   for (const b of $$('#rail [data-rail]')) {
@@ -146,9 +146,8 @@ function sync() {
   syncViews();
 }
 
-// Télémétrie : vues de la séance (Tableau de bord · Résultats · Résumé · Commentaires) en tête du Direct, quand une
-// séance ou un replay est chargé. Chaque segment reprend l'action existante ; le segment choisi suit la vue ouverte.
-const v3 = () => document.documentElement.dataset.design === 'v3';
+// Vues de la séance (Tableau de bord · Résultats · Résumé · Commentaires) en tête du Direct, quand une séance ou un
+// replay est chargé. Chaque segment reprend l'action existante ; le segment choisi suit la vue ouverte.
 const shown = (id) => !!$(id) && !$(id).hidden;
 const VIEWS = {
   board: () => { closeResults(); $('#summaryDlg')?.close(); $('#commPanel').hidden = true; },
@@ -160,7 +159,7 @@ function syncViews() {
   const bar = $('#sessViews');
   if (!bar) return;
   const page = ['#homeView', '#seasonView', '#newsView', '#replayView', '#noLiveView'].some(shown);
-  const off = !v3() || page || !store.state.SessionInfo || document.body.classList.contains('solo');
+  const off = page || !store.state.SessionInfo || document.body.classList.contains('solo');
   if (bar.hidden !== off) {
     bar.hidden = off;
     if (isResultsOpen()) placeView($('#resultsView'));   // la page Résultats commence sous le contrôle
@@ -243,5 +242,5 @@ export function initRail() {
   const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini', 'results']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } syncViews(); };
   noSession();
   setInterval(noSession, 2000);
-  on('prefs', (k) => { if (k === 'scheme') schemeButton(); if (k === 'design') sync(); });
+  on('prefs', (k) => { if (k === 'scheme') schemeButton(); });
 }

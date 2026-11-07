@@ -19,7 +19,7 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 ## 2. Principes
 
 1. **Données d'abord, décor ensuite.** Le tableau de bord est dense par nature (mode « Operate ») : la précision, la
-   lisibilité et la stabilité priment sur l'effet. Télémétrie (design par défaut) est à plat pour cela ; les effets de Paddock 2 (verre, lueurs) ne doivent
+   lisibilité et la stabilité priment sur l'effet. Télémétrie (le seul design) est à plat pour cela ; un effet ne doit
    jamais gêner la lecture d'un chiffre.
 2. **Aucun spoiler.** Rien ne doit révéler un résultat que l'utilisateur n'a pas encore vu : l'Accueil affiche
    « résultat masqué », le replay démarre avant le départ, les notifications et titres d'actualités respectent le
@@ -50,12 +50,12 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 
 ## 4. Règles visuelles
 
-- **Design de référence : Télémétrie** (`data-design="v3"`, défaut de l'appli et de la version web depuis la v1.32), **en sombre et en clair**. Paddock 2 et Classique
-  doivent rester lisibles sans casser.
+- **Un seul design : Télémétrie** (`data-design="v3"`, appli et version web, seul design depuis la v1.33 : Paddock 2,
+  Broadcast et Classique retirés), **en sombre et en clair**.
 - Réutiliser **les variables** (`--panel`, `--text-2`, `--muted`, `--accent`, `--tc`…) et les classes existantes
   (`.btn`, `.btn-accent`, `.btn.small`, `.tab`, `.tab-seg`, `.note`, `.toast`, `.modal`) ; ne jamais écrire une
   couleur de surface ou de texte en dur dans un composant (elle casserait l'apparence claire).
-- Nouveau style propre à Télémétrie : dans `design-v3.css`, préfixé `:root[data-design="v3"]` (Paddock 2 : `design-v2.css`, `:root[data-design="v2"]`).
+- Nouveau style propre à Télémétrie : dans `design-v3.css`, préfixé `:root[data-design="v3"]`.
 - Barre du haut, barre du replay et overlays de streaming : **toujours sombres**.
 - Couleur d'écurie : passer `--tc` sur l'élément ; en clair, passer par `onLight()` (`shared/colors.js`).
 - Titres : condensés (Saira Condensed) ; texte courant en Titillium Web ; temps et écarts en JetBrains Mono.
@@ -111,11 +111,11 @@ Règles de conception propres à Paddock Live, tirées de l'appli telle qu'elle 
 
 1. Lancer les captures :
    ```bash
-   node scripts/captures.mjs / --design=v2 --lang=fr
+   node scripts/captures.mjs / --lang=fr
    ```
    Le script démarre le serveur local **sans rien envoyer au Worker en production**, capture téléphone (390 px),
    tablette (820 px) et ordinateur (1440 px) en sombre et en clair dans `.cache/captures/`, et signale débordements
-   horizontaux et erreurs de page. Options : autres chemins, `--design=broadcast|classic`, `--lang=en|it|es`,
+   horizontaux et erreurs de page. Options : autres chemins, `--lang=en|it|es`,
    `--out=dossier`, `PORT=…`.
 2. Regarder les images (outil Read) ; pour une interaction (menu, survol, onglet), le serveur MCP Playwright de la
    session (`browser_navigate`, `browser_click`, `browser_take_screenshot`) ou un petit script Playwright, avec le

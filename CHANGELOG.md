@@ -19,9 +19,12 @@ l'application (Réglages → À propos → Nouveautés).
 - Jeux : « Devine le circuit », sous « Pronostics entre amis », ouvre le jeu du jour sur le site.
 
 ### Affichage
+- Un seul design, Télémétrie : Paddock 2 et Classique ne sont plus proposés (Réglages → Affichage n'a plus le choix
+  « Design »). Les applis qui les utilisaient passent sur Télémétrie, avec le Fil de course à la place de Radios et
+  Messages si les panneaux n'avaient pas été changés ; une disposition choisie à la main est gardée.
 - Ordinateur : la barre du haut ne déborde plus à droite (boutons coupés) entre 1366 et 1920 px, surtout en
-  espagnol, en italien et dans les designs Paddock 2 et Classique ; ce qui ne tient pas passe sur une deuxième ligne,
-  et l'Accueil, la Saison ou l'Actu s'ouvrent juste dessous.
+  espagnol et en italien ; ce qui ne tient pas passe sur une deuxième ligne, et l'Accueil, la Saison ou l'Actu
+  s'ouvrent juste dessous.
 
 ### Carte 3D
 - Aileron actif 2026 : en ligne droite, les volets de l'aileron arrière et de l'aileron avant s'ouvrent, puis se

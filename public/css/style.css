@@ -942,11 +942,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 @media (max-width: 1360px) {
   .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
-/* Paddock 2 et Classique, de 1361 à 1540 px : l'heure du circuit cède sa place (la barre sur une ligne débordait de
-   50 à 75 px pendant une séance avec l'état de la piste) ; Télémétrie a sa propre compaction (design-v3.css) */
-@media (min-width: 1361px) and (max-width: 1540px) {
-  :root:not([data-design="v3"]) .topbar #circuitTimeBox { display: none !important; }
-}
 
 /* ---------- Commentaires F1 TV ---------- */
 .comm-btn { position: relative; }
@@ -1714,8 +1709,6 @@ html:is(.float-map, .overlay) #map3dTog { display: none !important; }
 html:not(.phone) [data-phone] { display: none !important; }
 html.phone [data-desk] { display: none !important; }
 
-/* Design classique : pas de bandeau du bas (il fait partie du design Broadcast) */
-html[data-design="classic"] .rc-bar { display: none !important; }
 .tb-break { display: none; }
 @media (max-width: 900px) {
   .topbar .tb-break { display: block; flex-basis: 100%; height: 0; }
@@ -1797,8 +1790,6 @@ html[data-design="classic"] .rc-bar { display: none !important; }
   .mob-panels::-webkit-scrollbar { display: none; }
   .mob-panels button { flex: none; background: none; border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; color: var(--text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .mob-panels button.active { background: var(--panel-3); border-color: var(--line-2); color: var(--text); }
-  .mob-more { position: fixed; z-index: 1001; min-width: 230px; }
-  .mob-more button { font-size: 15px; padding: 11px 12px; }
   .mob-nav::-webkit-scrollbar { display: none; }
   /* Tous les onglets tiennent sur la largeur du téléphone (« Stratégie » n'est plus coupé) */
   .mob-nav button { flex: 1 1 0; min-width: 48px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px 4px;
@@ -2365,7 +2356,6 @@ body.solo .grid .panel-head { padding-right: 116px; }
    de l'écran principal) : onglets plus compacts, pour tenir sur une ligne */
 .grid:not(.mobile) .panel-head.tabs { column-gap: 2px; }
 @container (max-width: 560px) {
-  :root[data-design="v2"] .grid:not(.mobile) .panel-head.tabs > .tab { padding: 0 6px; font-size: 12px; letter-spacing: 0; }
   .grid:not(.mobile) .panel-head.tabs > :is(.tab-add, .rd-menu) { margin-left: 0; }
   .grid:not(.mobile) .panel-head.tabs > .rd-menu { margin-left: auto; }
 }
@@ -3285,7 +3275,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-follow:hover { color: var(--text); background: var(--panel-2); }
 .hm-follow .ic { width: 15px; height: 15px; }
 /* Accueil, tableau de bord de cartes (ui/home.js) : séances, classements, favoris, calendrier, chiffres de la saison,
-   actus. Grille automatique ici (Classique, Paddock 2) ; Télémétrie place les cartes (design-v3.css) */
+   actus. Grille automatique ici ; Télémétrie place les cartes (design-v3.css) */
 .hm-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .hm-board > :is(.hm-next, .hm-live, .hm-news) { grid-column: 1 / -1; }
 .hm-board > * { min-width: 0; }
@@ -3411,8 +3401,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .hm-fav-edit .fav-list { gap: 6px; }
 .hm-fav-edit .fav { padding: 4px 11px; font-size: 13px; font-weight: 600; }
-/* Accueil : favoris avec le portrait du pilote (cerclé de la couleur de son écurie) ou le logo de l'écurie (dans tous
-   les designs : broadcast.css est coupé en Classique et en Télémétrie) */
+/* Accueil : favoris avec le portrait du pilote (cerclé de la couleur de son écurie) ou le logo de l'écurie */
 .hm-fav-who { display: inline-flex; align-items: center; gap: 9px; }
 .hm-fav-pic { width: 30px; height: 30px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 40%, var(--panel-2)); border: 2px solid var(--tc); box-sizing: border-box; }   /* bordure (pas une ombre) : la case du nom coupe ce qui dépasse */
 .hm-fav-who .team-logo { width: 26px; height: 26px; }
@@ -4108,8 +4097,7 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 #szNav .sz-grp { display: none; }
 
 /* ---------- Saison : cartes et fiche des pilotes, cartes des écuries, Bilan de la saison ----------
-   Venues de broadcast.css (coupé en Classique et en Télémétrie : ces rubriques y étaient cassées) ; en dernier, comme
-   avant (Paddock 2 inchangé) ; Télémétrie les redessine à plat (design-v3.css) */
+   Règles de base, en dernier ; Télémétrie les redessine à plat (design-v3.css) */
 /* Pilotes : cartes de tous les pilotes, dans l'esprit des cartes officielles (prénom, nom, écurie, numéro et logo net sur
    la couleur de l'écurie, portrait à droite), puis le pilote choisi en grand */
 .sz-drv-strip { display: flex; gap: 10px; overflow-x: auto; padding: 3px 3px 14px; margin-bottom: 8px; scroll-snap-type: x proximity; }
@@ -4263,8 +4251,8 @@ html.tab-win .p-analysis .panel-head > [data-tab="compare"] { display: inline-fl
 }
 @keyframes gr-fill { from { opacity: 0; transform: scaleY(.2); } to { opacity: 1; transform: none; } }
 /* ---------- Contraste renforcé (Réglages → Affichage, ou prefers-contrast: more du système ; prefs.js) ----------
-   Tous les designs, sombre et clair : textes secondaires à 8:1 au moins, contours des panneaux et des boutons à 3:1.
-   `:root:root` : passe devant les jetons de chaque design (design-v2.css, design-v3.css, chargés après) */
+   Sombre et clair : textes secondaires à 8:1 au moins, contours des panneaux et des boutons à 3:1.
+   `:root:root` : passe devant les jetons du design (design-v3.css, chargé après) */
 :root:root[data-contrast="more"] {
   --text: #FFFFFF; --text-2: #E3E8EE; --muted: #C3CBD5;
   --border: #5C6878; --line: #414B58; --line-2: #7D8896;

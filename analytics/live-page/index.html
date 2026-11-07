@@ -26,10 +26,8 @@
   <meta name="apple-mobile-web-app-title" content="Paddock Live">
   <link rel="canonical" href="https://app.paddocklive.app/">
   <link rel="stylesheet" href="/live/css/style.css">
-  <link rel="stylesheet" href="/live/css/broadcast.css">
-  <link rel="stylesheet" href="/live/css/design-v2.css">
   <link rel="stylesheet" href="/live/css/design-v3.css">
-  <script>/* Apparence (sombre / clair / système) et design posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; document.documentElement.dataset.design = p.designV >= 2 ? p.design || 'v3' : p.design === 'classic' ? 'classic' : 'v3'; if (light && document.documentElement.dataset.design !== 'v2') document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; document.documentElement.dataset.design = 'v3'; } document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
+  <script>/* Apparence (sombre / clair / système) et design Télémétrie posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; if (light) document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').content = 'default'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.design = 'v3'; document.documentElement.dataset.theme = 'pitwall'; document.documentElement.classList.add('web'); const only = /[?&]only=(map|analysis|duel|compare)\b/.exec(location.search)?.[1]; if (only) document.documentElement.classList.add('only', `only-${only}`);</script>
   <style>
     /* Version web : écran principal de l'appli, sans menu latéral ni outils. Classement à gauche, circuit au centre,
        télémétrie, radios et direction de course l'une sous l'autre à droite ; Analyse et Duel dans des fenêtres à part */
@@ -83,9 +81,7 @@
     .web .topbar #seasonBtn { display: inline-flex !important; }
     .web .topbar #seasonBtn:not(.on) { border-color: rgba(255, 255, 255, .18); }
     /* Espace Saison : toutes les rubriques de l'appli, avec les intertitres du menu */
-    .web #szNav button[data-full]:not(.sz-shut) { display: flex !important; }   /* sauf rubriques d'un groupe replié (Télémétrie) */
-    html.web:not([data-design="v3"]) #szNav .sz-nav-sep { display: block !important; }   /* Télémétrie : groupes repliables à la place */
-    html.web:not([data-design="v3"]) #szNav .sz-grp { display: none !important; }   /* titres des groupes : Télémétrie seulement */
+    .web #szNav button[data-full]:not(.sz-shut) { display: flex !important; }   /* sauf rubriques d'un groupe replié */
     /* Écran affiché : les panneaux vides dessous sont retirés, la page ne défile plus */
     .web body:has(#noLiveView:not([hidden])) { overflow: hidden; }
     .web body:has(#noLiveView:not([hidden])) .grid { display: none; }
@@ -113,8 +109,8 @@
     .web body { padding-top: 0; }
     /* iPhone : zone de l'heure et de la batterie de la couleur de la barre du haut. L'iPhone la remplit avec le fond de
        la page (fond de html, le body garde le sien) ou laisse voir la page dessous (bande fixée de la hauteur de la zone) */
-    html.web:is([data-design="v2"], [data-scheme="dark"]) { background-color: #0C1326; }
-    html.web:is([data-design="v2"], [data-scheme="dark"])::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0C1326; z-index: 801; pointer-events: none; }
+    html.web[data-scheme="dark"] { background-color: #0C1326; }
+    html.web[data-scheme="dark"]::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: #0C1326; z-index: 801; pointer-events: none; }
     .web .topbar { position: sticky; top: 0; z-index: 800; padding-top: calc(8px + env(safe-area-inset-top)); background: linear-gradient(180deg, #0F172A, #0A1120); }
     .web .web-wait { padding: 8px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; font-weight: 600; text-align: center; }
     /* Appairage d'un téléphone (version web avec compte F1 TV, sans extension) */
@@ -250,7 +246,7 @@
     .web .web-nav { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12); flex: none; }
     .web .web-nav button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 0; border-radius: 999px; background: none; color: #CBD5E1; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
     .web .web-nav button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
-    .web .web-nav button.active { color: #fff; background: var(--v2-red, #e10600); }
+    .web .web-nav button.active { color: #fff; background: #e10600; }
     .web .web-nav .mn-svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .web .web-mnav { display: none; }
     .web a.hm-news-item { text-decoration: none; }
@@ -273,7 +269,7 @@
     html.web.only .grid { display: grid; flex: 1; grid-template: "only" minmax(0, 1fr) / minmax(0, 1fr); }
     html.web.only .grid > .panel { display: none; }
     html.web.only-map .grid > .p-map, html.web.only-analysis .grid > .p-analysis, html.web.only-duel .grid > .p-duel, html.web.only-compare .grid > .p-analysis { display: flex; grid-area: only; height: auto; }
-    /* Télémétrie (design par défaut, v1.32) : barre du haut couleur du fond, en sombre comme en clair ; elle passe à la
+    /* Télémétrie (le seul design depuis la v1.33) : barre du haut couleur du fond, en sombre comme en clair ; elle passe à la
        ligne plutôt que de couper sa fin (la version web y a plus de commandes que l'appli) */
     html.web[data-design="v3"] .topbar { flex-wrap: wrap; row-gap: 4px; }
     html.web[data-design="v3"]:is([data-scheme="dark"]) { background-color: var(--bg); }

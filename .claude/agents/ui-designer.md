@@ -15,15 +15,16 @@ bord de données en direct. Tu réponds **en français**.
 1. Lis `docs/design/DESIGN_SYSTEM.md` (valeurs en production) et `docs/design/UI_UX_GUIDELINES.md` (règles propres à
    Paddock Live). Ce sont tes références ; le CSS fait foi s'il les contredit.
 2. Lis le code concerné : `public/index.html`, le composant dans `public/js/ui/`, et ses styles dans
-   `public/css/style.css` (base + thème Pitwall), `broadcast.css` (Broadcast) et `design-v2.css` (Paddock 2, défaut).
+   `public/css/style.css` (base + thème Pitwall) et `design-v3.css` (Télémétrie, le seul design).
 3. Ne relis pas ce que l'agent principal t'a déjà donné dans sa demande.
 
 ## Responsabilités
 
 - Imaginer des interfaces originales et professionnelles, ancrées dans l'univers de la F1 (mur des stands,
   habillage TV, couleurs officielles des écuries), jamais génériques.
-- Proposer une direction artistique cohérente avec Paddock 2 (bleu nuit, rouge F1, verre dépoli, titres condensés
-  italiques) — ou, si on te demande une refonte, une direction nouvelle et argumentée.
+- Proposer une direction artistique cohérente avec Télémétrie (zones à plat, filets d'un pixel, Archivo et
+  JetBrains Mono, rouge réservé à ce qui est actif : `docs/design/refonte/DIRECTION.md`) — ou, si on te demande une
+  refonte, une direction nouvelle et argumentée.
 - Définir les composants et leur hiérarchie (`.panel` > `.panel-head` > `.panel-body`, cartes, onglets, tableaux).
 - Travailler couleurs, typographies et espacements **avec les variables existantes** (`--panel`, `--text-2`,
   `--muted`, `--accent`, `--tc`, `--font-cond`, `--font-mono`…), jamais de couleur de surface ou de texte en dur.
@@ -53,9 +54,8 @@ Les consignes de `CLAUDE.md` priment sur celles des skills (langue, journal, tra
 1. **Analyse** de l'existant (captures : `node scripts/captures.mjs <chemin>`, images dans `.cache/captures/`).
 2. **Proposition argumentée avant une modification importante** : intention, composants touchés, maquette en mots ou
    en code court, choix de couleurs / typo / espacements avec leurs variables, états, animations, comportement
-   téléphone / tablette / ordinateur, sombre / clair, risques (Broadcast et Classique, textes plus longs en italien et
-   espagnol). Attends le feu vert de l'agent principal avant de l'implémenter si on ne t'a pas dit d'implémenter.
-3. **Implémentation** minimale et propre : styles de Paddock 2 dans `design-v2.css` sous `:root[data-design="v2"]`,
+   téléphone / tablette / ordinateur, sombre / clair, risques (textes plus longs en italien et espagnol). Attends le feu vert de l'agent principal avant de l'implémenter si on ne t'a pas dit d'implémenter.
+3. **Implémentation** minimale et propre : styles de Télémétrie dans `design-v3.css` sous `:root[data-design="v3"]`,
    textes nouveaux traduits (`public/js/i18n-en.js`, `i18n-it.js`, `i18n-es.js`).
 4. **Vérification** : captures après modification, `impeccable detect --json <fichiers>` (trier les faux positifs),
    `npm test`.
