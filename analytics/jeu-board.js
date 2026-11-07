@@ -18,10 +18,10 @@ export const cleanName = (s) => String(s || '').normalize('NFC').replace(/[^\p{L
 const fold = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
   .replace(/[0@4]/g, (c) => ({ 0: 'o', '@': 'a', 4: 'a' }[c])).replace(/[1!|]/g, 'i').replace(/3/g, 'e').replace(/5/g, 's').replace(/7/g, 't').replace(/[^a-z]/g, '');
 // Mots refusés dans un pseudo (insultes, propos haineux, en français et en anglais), sans accents ni chiffres déguisés
-// (« 3 » pour « e »…) ; « admin », « paddock » et « modo » : pas de faux compte officiel. SUB : cherchés partout dans le
+// (« 3 » pour « e »…) ; « admin », « paddocklive » et « modo » : pas de faux compte officiel (« Benjypaddock » passe). SUB : cherchés partout dans le
 // pseudo collé ; WORD : seulement en mot entier (« nique » dans « Dominique », « cock » dans « Hitchcock »)
 const SUB = ['connard', 'connasse', 'conasse', 'salope', 'salaud', 'encule', 'putain', 'batard', 'merde', 'tapette', 'gouine', 'negre', 'bougnoule',
-  'youpin', 'couille', 'nazi', 'hitler', 'fuck', 'bitch', 'whore', 'nigger', 'nigga', 'faggot', 'admin', 'paddock', 'moderat'];
+  'youpin', 'couille', 'nazi', 'hitler', 'fuck', 'bitch', 'whore', 'nigger', 'nigga', 'faggot', 'admin', 'paddocklive', 'moderat'];
 const WORD = new Set(['pute', 'nique', 'niquer', 'ntm', 'fdp', 'pd', 'pede', 'bite', 'chatte', 'cul', 'pedo', 'viol', 'shit', 'cunt', 'dick', 'cock',
   'pussy', 'slut', 'fag', 'retard', 'rape', 'porn', 'sex', 'modo']);
 export function nameOk(name) {

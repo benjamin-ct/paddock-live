@@ -253,7 +253,8 @@ h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: .95; margin: 64px 0 16px;
 .stage .north { position: absolute; top: 10px; left: 12px; color: var(--muted); font: 500 11px/1 var(--mono); letter-spacing: .12em; }
 .stage .north::before { content: '↑ '; }
 .trk-under { fill: none; stroke: var(--bg); stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
-.trk { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; transition: stroke .4s, stroke-dasharray .6s var(--ease), stroke-dashoffset .6s var(--ease); }
+.trk { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.map.anim .trk { transition: stroke .4s, stroke-dasharray .6s var(--ease), stroke-dashoffset .6s var(--ease); }
 .track.won .trk { stroke: var(--best); }
 /* Jours « pilote », « écurie », « course » : dessin à la place du tracé ; difficulté du jour en pastille */
 .stage .helmet, .stage .car, .stage .flagfig { display: none; padding: 16%; }

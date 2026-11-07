@@ -381,4 +381,6 @@ if (isCircuit) {
   $('trk').setAttribute('points', answer.outline);
 }
 render();
+// Tracé animé seulement après le premier affichage : sans quoi il passe un instant du tour entier à la part visible
+requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector('.map')?.classList.add('anim')));
 tick();

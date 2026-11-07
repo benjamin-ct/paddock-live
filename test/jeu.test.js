@@ -176,8 +176,8 @@ test('jeu du jour : pilotes (indices complets, noms uniques, nationalités connu
 
 test('jeu du jour : pseudos du classement (nettoyés, insultes refusées, faux comptes officiels refusés)', () => {
   assert.equal(cleanName('  <b>Max</b>  33 '), 'bMaxb 33');
-  for (const ok of ['Dominique', 'Hitchcock', 'Violette', 'Max33', 'Lé o', 'Scunthorpe', 'Computer']) assert.ok(nameOk(ok), ok);
-  for (const bad of ['connard', 'C0nn4rd', 'FDP', 'gros pd', 'Fuck you', 'admin', 'PaddockLive', 'x']) assert.ok(!nameOk(cleanName(bad)), bad);
+  for (const ok of ['Dominique', 'Hitchcock', 'Violette', 'Max33', 'Lé o', 'Scunthorpe', 'Computer', 'Benjypaddock', 'BenjyPaddock']) assert.ok(nameOk(ok), ok);
+  for (const bad of ['connard', 'C0nn4rd', 'FDP', 'gros pd', 'Fuck you', 'admin', 'PaddockLive', 'Paddock Live', 'x']) assert.ok(!nameOk(cleanName(bad)), bad);
 });
 
 // Base SQLite de Node (22 et plus) habillée comme D1, avec le schéma du serveur

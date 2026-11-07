@@ -183,7 +183,8 @@ fs.writeFileSync(path.join(LIVE, 'index.html'), livePage.replace('</head>', `<me
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono|archivo).*\.woff2$|^OFL/.test(f));
 copy(path.join(ROOT, 'analytics', 'fonts'), path.join(OUT, 'fonts'));   // Barlow Condensed et Chakra Petch : visuels « Télé premium »
-// En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
+// En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps (jeu : no-cache, une page
+// gardée en cache appellerait un serveur plus récent qu'elle)
 // (les règles qui conviennent s'ajoutent : « ! Cache-Control » retire celle de /site/* pour les images, sinon deux valeurs)
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
@@ -198,9 +199,9 @@ ${Object.entries(STUDIO_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')}
 /alertes/*
   Cache-Control: no-cache
 /jeu/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache
 /en/guess-the-circuit/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache
 /app/*
   Cache-Control: public, max-age=3600
 /site/*
