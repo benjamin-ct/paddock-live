@@ -29,6 +29,12 @@
   reviennent à la bêta suivante). Une autre bêta à chaque retouche. Sur « publie » : date du jour, fusion dans
   `main`, workflow lancé sur `main` avec `vX.Y.Z`, puis `main` refusionné dans `develop`.
 - Ne fusionner et ne publier que lorsque l'utilisateur le demande.
+- **Priorités** : la liste « Plan novembre – février (priorités) » du Suivi fixe la priorité du moment ; la lire en début
+  de session. **Version en gel** (la 1.33 jusqu'à sa publication, puis la fin de saison jusqu'à Abu Dhabi) : seulement
+  des corrections ; une idée de nouveauté se note dans « Version 2.0 · idées à choisir » au lieu d'être codée, sauf si
+  l'utilisateur demande explicitement de la faire maintenant (le lui rappeler une fois). **Week-end de course** : un bug
+  vu en séance se corrige tout de suite, une idée se note. Une session de développement à la fois (ou des domaines bien
+  séparés), 2 PR ouvertes au plus.
 - **Modifications du serveur seul, sans nouvelle version de l'appli** : quand une PR ne touche que le serveur des
   statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`
   que l'appli n'importe pas, ni directement ni par un autre fichier de `shared/` — vérifier avec
