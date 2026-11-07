@@ -2142,6 +2142,8 @@ export default {
   "Suivre Paddock Live sur les réseaux": "Segui Paddock Live sui social",
   "Jeu du jour : devine le circuit": "Gioco del giorno: indovina il circuito",
   "Devine le circuit": "Indovina il circuito",
+  "Explications pour les débutants (programme du week-end)": "Spiegazioni per principianti (programma del weekend)",
+  "Phrase courte sous chaque séance du programme du week-end (Accueil, calendrier) : à quoi elle sert": "Una frase breve sotto ogni sessione del programma del weekend (Home, calendario): a cosa serve",
   "Pas de séance en direct": "Nessuna sessione in diretta",
   "Saison terminée.": "Stagione conclusa.",
   "Le tableau de bord s'ouvre tout seul au début de la séance.": "La dashboard si apre da sola all'inizio della sessione.",

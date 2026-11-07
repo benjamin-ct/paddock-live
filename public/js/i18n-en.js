@@ -2203,6 +2203,8 @@ export default {
   "Suivre Paddock Live sur les réseaux": "Follow Paddock Live on social media",
   "Jeu du jour : devine le circuit": "Daily game: guess the circuit",
   "Devine le circuit": "Guess the circuit",
+  "Explications pour les débutants (programme du week-end)": "Beginner explanations (weekend schedule)",
+  "Phrase courte sous chaque séance du programme du week-end (Accueil, calendrier) : à quoi elle sert": "A short line under each session of the weekend schedule (Home, calendar): what it is for",
   "Pas de séance en direct": "No live session",
   "Saison terminée.": "Season over.",
   "Le tableau de bord s'ouvre tout seul au début de la séance.": "The dashboard opens by itself when the session starts.",
