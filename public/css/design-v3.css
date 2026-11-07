@@ -212,7 +212,7 @@
 :root[data-design="v3"] .tower td.pos::before { display: none; }
 :root[data-design="v3"] .tower .drv-tla { font: 700 var(--fs-md)/1 var(--font); letter-spacing: .03em; }
 /* Écurie : trait de couleur à la place des logos dans leurs pastilles blanches */
-:root[data-design="v3"] .tower .team-logo { width: 3px; height: 18px; border-radius: 2px; background: var(--tc) !important; background-image: none !important; box-shadow: none; border: 0; flex: none; }
+:root[data-design="v3"][data-logos="off"] .tower .team-logo { width: 3px; height: 18px; border-radius: 2px; background: var(--tc) !important; background-image: none !important; box-shadow: none; border: 0; flex: none; }
 /* Mode dépassement : affiché seulement quand il est allumé */
 :root[data-design="v3"] .tower .tag.dep:not(.on) { display: none; }
 :root[data-design="v3"] .tower .tag { border-radius: var(--r-xs); font: 600 10px/1 var(--font-mono); letter-spacing: 0; padding-left: 4px; padding-right: 4px; }
@@ -486,7 +486,7 @@
 :root[data-design="v3"] .hm-std-t td.n { font: 500 var(--fs-xs)/1 var(--font-mono); }
 :root[data-design="v3"] .hm-std-pos { font: 800 var(--fs-lg)/1 var(--font-cond); }
 :root[data-design="v3"] .hm-std-who b { font-weight: 600; }
-:root[data-design="v3"] .hm-std-who .team-logo { width: 3px !important; height: 16px !important; margin-right: 10px; }
+:root[data-design="v3"][data-logos="off"] .hm-std-who .team-logo { width: 3px !important; height: 16px !important; margin-right: 10px; }
 :root[data-design="v3"] .hm-evo { font: 500 var(--fs-2xs)/1 var(--font-mono); }
 @media (pointer: coarse) { :root[data-design="v3"] .hm-std-t td { height: 36px; } }
 /* Ouverture : les cartes arrivent l'une après l'autre (pas le tableau entier) */
@@ -595,9 +595,10 @@
 :root[data-design="v3"] .sz-table a.sz-gp-chip { border-color: var(--border); border-radius: var(--r-sm); background: var(--panel-2); }
 :root[data-design="v3"] .sz-table a.sz-gp-chip:hover { border-color: var(--line-2); background: var(--panel-3); text-decoration: none; }
 :root[data-design="v3"] .sz-table .dest-drv:hover b, :root[data-design="v3"] .sz-table .dest-drv:focus-visible b { color: var(--text); text-decoration: underline; }
-:root[data-design="v3"] :is(.season-view, .summary-dlg) .team-logo { width: 3px !important; height: 16px !important; margin-right: 8px; border: 0; border-radius: 2px; box-shadow: none;
+/* Réglage « Logos des écuries » décoché : trait de la couleur de l'écurie à la place du logo (Saison, résumé) */
+:root[data-design="v3"][data-logos="off"] :is(.season-view, .summary-dlg) .team-logo { width: 3px !important; height: 16px !important; margin-right: 8px; border: 0; border-radius: 2px; box-shadow: none;
   background: var(--tc) !important; background-image: none !important; flex: none; vertical-align: middle; }
-:root[data-design="v3"] :is(.season-view, .summary-dlg) .sz-big .team-logo { height: 26px !important; }
+:root[data-design="v3"][data-logos="off"] :is(.season-view, .summary-dlg) .sz-big .team-logo { height: 26px !important; }
 :root[data-design="v3"] .sz-table td .drv-bar, :root[data-design="v3"] .season-view .drv-bar { width: 3px; border-radius: 2px; }
 :root[data-design="v3"] .sz-chip { border-radius: var(--r-xs); }
 

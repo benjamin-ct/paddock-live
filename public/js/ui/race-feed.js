@@ -7,7 +7,7 @@ import { $, esc, drivers, teamColor, fmtClock } from '../util.js';
 import { parseUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
-import { radioCaptures, radioTextHtml, lapAt, isPlaying, playRadio } from './radios.js';
+import { radioCaptures, radioTextHtml, lapAt, isPlaying, playRadio, seekRadio } from './radios.js';
 import { rcmType, rcmFlagClass, rcmMsgHtml, rcmVersion } from './feed.js';
 import { rcmTag as sharedTag } from '/shared/rcm-fr.js';
 
@@ -54,7 +54,8 @@ function rowHtml(r, dl) {
     const text = prefs.radioText ? radioTextHtml(c) : `<div class="rd-text muted">${esc(t('Radio d\'équipe'))}</div>`;
     return `<li class="rf-item rf-radio${playing ? ' playing' : ''}" data-url="${esc(c.url)}">${when}
       <div class="rf-body">${head(`<span class="rf-tag" style="--k:${teamColor(d)}" title="${esc(name)}">${esc(d.Tla || c.num)}</span>`, lapAt(c.num, c.utc))}${text}</div>
-      <button type="button" class="icon-btn rf-play" aria-label="${esc(playing ? t('Pause') : t('Écouter la radio de {}', name))}">${icon(playing ? 'pause' : 'play')}</button></li>`;
+      <button type="button" class="icon-btn rf-play" aria-label="${esc(playing ? t('Pause') : t('Écouter la radio de {}', name))}">${icon(playing ? 'pause' : 'play')}</button>${playing ? `
+      <div class="rf-progress" style="--k:${teamColor(d)}"><span class="rf-prog"><i></i></span><span class="rf-time"></span></div>` : ''}</li>`;
   }
   const m = r.msg;
   const [k, label] = rcmTag(m);
@@ -94,7 +95,14 @@ export function initRaceFeed() {
   chips.addEventListener('click', (e) => { const b = e.target.closest('[data-rf]'); if (b) setPref('raceFeedFilter', b.dataset.rf); });
   on('prefs', (k) => { if (k === 'raceFeedFilter') { paint(); renderRaceFeed(); } });
   // Une radio se lit au clic sur sa ligne ou son bouton (comme dans le panneau Radios)
-  $('#rfList').addEventListener('click', (e) => { const li = e.target.closest('.rf-radio'); if (li) playRadio(li.dataset.url); });
+  // Clic sur la barre de la radio en cours : saut à cet endroit (ui/radios.js)
+  $('#rfList').addEventListener('click', (e) => {
+    const li = e.target.closest('.rf-radio');
+    if (!li) return;
+    const bar = e.target.closest('.rf-prog');
+    if (bar) { const r = bar.getBoundingClientRect(); if (seekRadio(li.dataset.url, (e.clientX - r.left) / r.width)) return; }
+    playRadio(li.dataset.url);
+  });
   const bump = () => { ver++; };
   on('radioText', bump);
   window.addEventListener('paddock:radio', bump);   // radio lancée ou arrêtée (ui/radios.js)

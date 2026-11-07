@@ -255,12 +255,28 @@ export function playRadio(url) {
 function paintProgress() {
   if (!cur || !audio) return;
   const p = audio.duration > 0 ? Math.min(1, audio.currentTime / audio.duration) : 0;
+  const time = audio.duration > 0 ? `${fmtDur(audio.currentTime) || '0:00'} / ${fmtDur(audio.duration)}` : '';
+  // Fil de course (ui/race-feed.js) : barre et temps sous la radio en cours
+  for (const li of document.querySelectorAll('.rf-radio.playing')) {
+    if (li.dataset.url !== cur.url) continue;
+    const bar = li.querySelector('.rf-prog i'), t = li.querySelector('.rf-time');
+    if (bar) bar.style.transform = `scaleX(${p})`;
+    if (t) t.textContent = time;
+  }
   const el = cards.get(cur.url)?.el;
   if (!el) return;
   // Toute la carte se remplit de gauche à droite, avec une barre pleine largeur en bas
   for (const x of el.querySelectorAll('.rd-fill, .rd-prog i')) x.style.transform = `scaleX(${p})`;
   const dur = el.querySelector('.rd-c-dur');
-  if (dur && audio.duration > 0) dur.textContent = `${fmtDur(audio.currentTime) || '0:00'} / ${fmtDur(audio.duration)}`;
+  if (dur && time) dur.textContent = time;
+}
+
+// Saut à un endroit (f de 0 à 1) de la radio en cours, au clic sur sa barre de progression
+export function seekRadio(url, f) {
+  if (cur?.url !== url || !(audio?.duration > 0)) return false;
+  audio.currentTime = Math.max(0, Math.min(1, f)) * audio.duration;
+  paintProgress();
+  return true;
 }
 
 let ticking = false;
@@ -324,12 +340,7 @@ export function initRadios() {
     if (!card) return;
     // Clic sur la barre de progression de la radio en cours : saut à cet endroit
     const bar = e.target.closest('.rd-prog');
-    if (bar && cur?.url === card.dataset.url && audio?.duration > 0) {
-      const r = bar.getBoundingClientRect();
-      audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
-      paintProgress();
-      return;
-    }
+    if (bar) { const r = bar.getBoundingClientRect(); if (seekRadio(card.dataset.url, (e.clientX - r.left) / r.width)) return; }
     playRadio(card.dataset.url);
   });
   // Molette verticale : défilement horizontal de la bande
