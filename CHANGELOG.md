@@ -9,6 +9,8 @@ l'application (Réglages → À propos → Nouveautés).
 ### Accueil
 - Un lien sous les raccourcis mène au jeu du jour « Devine le circuit » sur le site (en anglais pour les autres
   langues).
+- Réglages → Affichage : « Explications pour les débutants » se décoche pour retirer la phrase sous chaque séance
+  du programme du week-end (Accueil et calendrier).
 
 ### Saison
 - Écuries : les livrées spéciales de chaque écurie, de 2018 à aujourd'hui (127 au total), sur sa page : photo de
