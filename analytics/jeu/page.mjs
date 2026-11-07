@@ -78,7 +78,10 @@ const T = {
     tab_today: 'Jour', tab_week: 'Semaine', tab_month: 'Mois', tab_all: 'Général', streakTip: 'Série de {} jours',
     mine: 'Ta partie du jour : {} pts', bonus: 'dont {} de bonus de série',
     joker: 'Joker', jokerTitle: 'Indice suivant sans perdre d\'essai : 2 points de moins', stake: 'Points en jeu : {}',
-    jokerHint: 'Joker, {} : {}.', boardEmpty: 'Personne encore : sois le premier.',
+    jokerHint: 'Joker, {} : {}.',
+    imgBtn: 'Image à partager', imgSaved: 'Image enregistrée.', lost: 'Perdu', toPlay: 'À jouer',
+    archTitle: 'Jours précédents', archLead: 'Rejoue les jours que tu as manqués : sans points, sans série et hors classement.', archEmpty: 'Pas encore de jour précédent.',
+    archTag: 'Archives', archBack: 'Revenir au jeu du jour', archNote: 'Partie des archives : pas de points, ni de série, ni de classement.', boardEmpty: 'Personne encore : sois le premier.',
     boardOff: 'Classement injoignable pour l\'instant.', sending: 'Envoi…', sent: 'Classement : tu joues sous le pseudo {}.', north: 'N', next: 'Prochain jeu dans {}', fresh: 'Nouveau jeu disponible', reload: 'Recharger',
     guessLabel: 'Ton essai', placeholder: 'Nom du circuit ou ville', submit: 'Valider', tries: 'Essais', hintsTitle: 'Indices',
     hit: 'Trouvé', near: 'Même pays', miss: 'Raté', locked1: 'Après 1 erreur ou joker', locked: 'Après {} erreurs ou jokers',
@@ -119,7 +122,10 @@ const T = {
     tab_today: 'Day', tab_week: 'Week', tab_month: 'Month', tab_all: 'Overall', streakTip: '{}-day streak',
     mine: 'Today\'s game: {} pts', bonus: 'including {} streak bonus',
     joker: 'Joker', jokerTitle: 'Next clue without losing a guess: 2 points less', stake: 'Points at stake: {}',
-    jokerHint: 'Joker, {}: {}.', boardEmpty: 'Nobody yet: be the first.',
+    jokerHint: 'Joker, {}: {}.',
+    imgBtn: 'Image to share', imgSaved: 'Image saved.', lost: 'Lost', toPlay: 'To play',
+    archTitle: 'Previous days', archLead: 'Replay the days you missed: no points, no streak and off the leaderboard.', archEmpty: 'No previous day yet.',
+    archTag: 'Archive', archBack: 'Back to today\'s game', archNote: 'Archive game: no points, no streak and no leaderboard.', boardEmpty: 'Nobody yet: be the first.',
     boardOff: 'Leaderboard unavailable for now.', sending: 'Sending…', sent: 'Leaderboard: you play as {}.', north: 'N', next: 'Next game in {}', fresh: 'New game available', reload: 'Reload',
     guessLabel: 'Your guess', placeholder: 'Circuit name or city', submit: 'Guess', tries: 'Guesses', hintsTitle: 'Clues',
     hit: 'Correct', near: 'Same country', miss: 'Wrong', locked1: 'After 1 miss or joker', locked: 'After {} misses or jokers',
@@ -148,7 +154,7 @@ const CLIENT = ['locale', 'num', 'next', 'fresh', 'reload', 'hit', 'near', 'miss
   'missed', 'newHint', 'winOne', 'win', 'lose', 'copied', 'copyFail', 'played', 'wonPct', 'streak', 'best', 'shareTitle', 'shareStreak', 'url',
   'driverShort', 'modeCircuit', 'modeDriver', 'lv_easy', 'lv_medium', 'lv_hard', 'h1Driver', 'leadDriver', 'placeholderDriver', 'unknownDriver', 'manyDriver',
   'nearDriver', 'debut', 'titles', 'wins', 'nat', 'team', 'initials', 'shareTitleDriver', 'players', 'pts', 'days', 'rank', 'you', 'boardEmpty',
-  'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint'];
+  'boardOff', 'sending', 'sent', 'tab_today', 'tab_week', 'tab_month', 'tab_all', 'streakTip', 'mine', 'bonus', 'stake', 'jokerHint', 'h1', 'imgSaved', 'lost', 'toPlay', 'archEmpty'];
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -213,6 +219,14 @@ body.driver .stage .north { display: none; }
 .level[data-level="easy"] { color: var(--pb); border-color: currentColor; }
 .level[data-level="medium"] { color: var(--yellow); border-color: currentColor; }
 .level[data-level="hard"] { color: var(--red); border-color: currentColor; }
+/* Archives */
+.arch-tag { color: var(--best); border-color: currentColor; }
+#archBack { margin: 10px 0 0; }
+.small-lead { font-size: 16px; margin-top: 0; }
+ol.arch li { padding: 0; }
+ol.arch a { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 46px; text-decoration: none; }
+ol.arch a:hover .nm { text-decoration: underline; }
+ol.arch a[aria-current] .nm { color: var(--best); }
 /* Joker et points en jeu */
 .help { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
@@ -350,7 +364,8 @@ ${STYLE}</style>
   <a class="btn" href="${t.home}#telecharger">${t.dl}</a>
 </div></header>
 <main class="wrap">
-  <p class="eyebrow">${esc(t.eyebrow)} <b id="num"></b> <span class="level" id="level" title="${esc(t.levelLabel)}"></span></p>
+  <p class="eyebrow">${esc(t.eyebrow)} <b id="num"></b> <span class="level" id="level" title="${esc(t.levelLabel)}"></span> <span class="level arch-tag" id="archTag" hidden>${esc(t.archTag)}</span></p>
+  <p id="archBack" hidden><a class="linkish" href="./">${esc(t.archBack)}</a></p>
   <h1 id="h1">${esc(t.h1)}</h1>
   <p class="lead" id="lead">${esc(t.lead)}</p>
   <div class="board">
@@ -380,7 +395,8 @@ ${STYLE}</style>
   <section class="end" id="end" hidden aria-labelledby="endH">
     <h2 id="endH" tabindex="-1"></h2>
     <pre id="shareText"></pre>
-    <div class="row"><button class="btn" type="button" id="share">${esc(t.share)}</button><span class="msg" id="shareMsg" role="status"></span></div>
+    <div class="row" id="shareRow"><button class="btn" type="button" id="share">${esc(t.share)}</button><button class="btn ghost" type="button" id="shareImg">${esc(t.imgBtn)}</button><span class="msg" id="shareMsg" role="status"></span></div>
+    <p class="msg" id="archNote" hidden>${esc(t.archNote)}</p>
     <div class="stats" id="stats"></div>
   </section>
   <section class="end board-sec" id="board" hidden aria-labelledby="boardH">
@@ -394,6 +410,9 @@ ${STYLE}</style>
     <div class="row"><span class="msg" id="boardMsg" role="status"></span><button class="linkish" type="button" id="boardRename">${esc(t.rename)}</button></div>
     <div id="boardBody"></div>
   </section>
+  <h2>${esc(t.archTitle)}</h2>
+  <p class="lead small-lead">${esc(t.archLead)}</p>
+  <div id="archList"></div>
   <h2>${esc(t.howTitle)}</h2>
   <ul class="how">${t.how.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>
   <div class="cta"><p>${esc(t.cta)}<small>${esc(t.os)}</small></p><a class="btn" href="${t.home}#telecharger">${esc(t.ctaBtn)}</a></div>
