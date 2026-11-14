@@ -1,0 +1,44 @@
+name: Reprise des versions
+
+# Une seule fois, au passage du code en privé : recopie ici des versions publiées dans le dépôt du code
+# (benjamin-ct/paddock-live-dev), avec leur page, leurs fichiers et leur statut (bêta ou dernière version), pour que
+# les applis déjà installées trouvent tout de suite leurs mises à jour et le site ses téléchargements. Fichiers
+# identiques, donc les signatures des versions restent valables. Source gardée dans depot-public/ du dépôt du code.
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Versions à reprendre, de la plus ancienne à la plus récente (ex. v1.33.2 v2.0.0-beta.9)'
+        required: true
+
+permissions: {}
+
+jobs:
+  reprise:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      SOURCE_REPO: benjamin-ct/paddock-live-dev
+      TAGS: ${{ inputs.tags }}
+    steps:
+      - name: Versions recopiées
+        env:
+          SRC_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for t in $TAGS; do
+            if gh release view "$t" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then echo "$t : déjà là"; continue; fi
+            d="files-$t"; mkdir "$d"
+            GH_TOKEN="$SRC_TOKEN" gh release view "$t" --repo "$SOURCE_REPO" --json name,body,isPrerelease > "$d.json"
+            GH_TOKEN="$SRC_TOKEN" gh release download "$t" --repo "$SOURCE_REPO" -D "$d"
+            jq -r .body "$d.json" > "$d.md"
+            # Commit du code de cette version, noté en bas de sa page (caché) : « Nouveau dans cette bêta » de la suivante
+            sha=$(GH_TOKEN="$SRC_TOKEN" gh api "repos/$SOURCE_REPO/commits/$t" --jq .sha 2>/dev/null || true)
+            [ -n "$sha" ] && printf '\n---\n<!-- source: %s -->\n' "$sha" >> "$d.md"
+            if [ "$(jq -r .isPrerelease "$d.json")" = true ]; then flags="--prerelease --latest=false"; else flags="--latest"; fi
+            gh release create "$t" "$d"/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "$(jq -r .name "$d.json")" --notes-file "$d.md" $flags
+            echo "$t : recopiée ($(ls "$d" | wc -l) fichiers)"
+          done

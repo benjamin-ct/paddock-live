@@ -1,0 +1,299 @@
+name: Application de bureau
+
+# Workflow du dépôt PUBLIC benjamin-ct/paddock-live (versions, page GitHub). Sa source est gardée dans le dépôt privé
+# du code (benjamin-ct/paddock-live-dev, dossier depot-public/) : le modifier là, puis le recopier ici. Compiler dans
+# le dépôt public ne coûte aucune minute GitHub Actions (le Mac compte 10 fois en privé). Le code est lu dans le dépôt
+# privé avec le secret SOURCE_TOKEN (jeton « fine-grained » : dépôt paddock-live-dev seulement, Contents en lecture).
+# Secrets de ce dépôt : SOURCE_TOKEN, EVS_ACCOUNT_NAME / EVS_PASSWD, CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID,
+# WINGET_TOKEN. Seul le propriétaire du dépôt peut le lancer.
+#
+# Génère l'application pour Windows (installateur + portable), macOS (Apple Silicon et Intel :
+# .dmg + .zip pour les mises à jour) et Linux (AppImage x86_64 / ARM + paquet .deb) :
+# - version finale, pour tout le monde : « Branche du code » main (onglet Actions → « Application de
+#   bureau » → Run workflow, « Version à publier » ex. v1.28.0) ;
+# - version bêta, « Branche du code » develop (« Version à publier » : beta) : pré-version
+#   GitHub v<version « à venir » du journal>-beta.<n> (1, 2, 3… pour chaque version), reçue seulement par les applis inscrites aux bêtas
+#   (ni sur les liens de téléchargement du site, ni pour les autres) ; les 3 dernières gardées ;
+# - versions finales : les 10 dernières gardées sur GitHub (les plus anciennes effacées, tags git gardés).
+# - la page du dépôt (README, captures, journal, licences) est recopiée du code à chaque version finale.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branche du code (dépôt privé) : develop pour une bêta, main pour une version finale, ou la branche d''une correction urgente'
+        required: true
+        default: develop
+      release_tag:
+        description: 'Version à publier (ex. v1.28.0, ou beta sur develop pour la bêta suivante) — laisser vide pour un simple test'
+        required: false
+        default: ''
+
+env:
+  SOURCE_REPO: benjamin-ct/paddock-live-dev
+
+# Aucun droit par défaut ; chaque tâche reçoit seulement les siens (écriture : publication de la version seule)
+permissions: {}
+
+# Bêtas : une nouvelle demande sur develop remplace la compilation encore en cours
+concurrency:
+  group: desktop-${{ inputs.ref }}
+  cancel-in-progress: ${{ inputs.ref == 'develop' }}
+
+jobs:
+  # Version à publier (bêta : celle « à venir » du journal, numérotée) ; ses nouveautés doivent être
+  # dans CHANGELOG.md : vérifié avant de compiler
+  version:
+    if: github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      sha: ${{ steps.v.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: v
+        name: Version à publier
+        env:
+          INPUT_TAG: ${{ inputs.release_tag }}
+          SOURCE_REF: ${{ inputs.ref }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Commit du code compilé : le même pour toutes les machines, même si la branche avance entre-temps
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          tag="$INPUT_TAG"
+          beta=false
+          if [ "$tag" = beta ]; then tag=""; beta=true; fi
+          if [ "$beta" = true ] && [ "$SOURCE_REF" != develop ]; then echo "::error::« beta » se lance sur develop (correction urgente : vX.Y.Z-beta.<n> sur sa branche)"; exit 1; fi
+          # Version demandée à la main : forme vX.Y.Z (version finale) ou vX.Y.Z-beta.N (bêta d'une correction urgente)
+          if [ -n "$tag" ] && ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then echo "::error::Version « $tag » : attendu vX.Y.Z ou vX.Y.Z-beta.N"; exit 1; fi
+          # Version finale (pour tout le monde) : seulement depuis main, avec sa section datée dans le journal
+          if [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            git merge-base --is-ancestor HEAD origin/main || { echo "::error::Version finale $tag : seulement depuis main (« Branche du code » : main)"; exit 1; }
+            grep -qE "^## ${tag//./\\.} — [0-9]{4}-[0-9]{2}-[0-9]{2}\s*$" CHANGELOG.md || { echo "::error::Version finale $tag : section « ## $tag — AAAA-MM-JJ » datée attendue dans CHANGELOG.md (pas « à venir »)"; exit 1; }
+          fi
+          if [ "$beta" = true ]; then
+            head=$(grep -m1 -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
+            if echo "$head" | grep -q 'à venir'; then
+              # Numéro suivant la dernière bêta de cette version : beta.1, beta.2…
+              v=$(echo "$head" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
+              n=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[].tag_name | select(startswith(\"$v-beta.\")) | ltrimstr(\"$v-beta.\") | tonumber] | max // 0")
+              tag="$v-beta.$((n + 1))"
+            else
+              echo "::warning::Pas de version « à venir » en tête de CHANGELOG.md : pas de bêta"
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Version : ${tag:-(simple test)}"
+      - name: Nouveautés de la version dans CHANGELOG.md
+        if: steps.v.outputs.tag != ''
+        env:
+          TAG: ${{ steps.v.outputs.tag }}
+        run: node scripts/release-notes.mjs "$TAG" > /dev/null
+      # Tests avant toute publication (bêta ou version finale)
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.v.outputs.tag != ''
+        with:
+          node-version: 22
+      - name: Tests
+        if: steps.v.outputs.tag != ''
+        run: npm ci --ignore-scripts && npm test
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            script: dist
+            files: |
+              desktop/dist/*.exe
+          - os: macos-latest
+            name: macOS
+            script: dist:mac
+            files: |
+              desktop/dist/*.dmg
+              desktop/dist/*.zip
+          - os: ubuntu-latest
+            name: Linux
+            script: dist:linux
+            files: |
+              desktop/dist/*.AppImage
+              desktop/dist/*.deb
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.version.outputs.sha }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      # Versions exactes du fichier package-lock.json (rien de plus récent installé en silence)
+      - run: npm ci
+      # Signature VMP castlabs (Widevine) sous Windows et macOS : faite si les secrets
+      # EVS_ACCOUNT_NAME / EVS_PASSWD existent (Linux : pas de VMP).
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: runner.os != 'Linux'
+        with:
+          python-version: '3.12'
+      - if: runner.os != 'Linux'
+        run: python -m pip install castlabs-evs==1.3.3
+      - name: Numéro de version de l'appli = tag publié
+        if: startsWith(env.RELEASE_TAG, 'v')
+        shell: bash
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
+      - run: npm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
+          EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Paddock-Live-${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    if: startsWith(needs.version.outputs.tag, 'v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # page de la version, fichiers et tags
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
+      BETA: ${{ contains(needs.version.outputs.tag, '-') }}
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      SOURCE_SHA: ${{ needs.version.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ needs.version.outputs.sha }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          fetch-depth: 0
+          persist-credentials: false
+      # Nouveautés de la version (CHANGELOG.md) + instructions d'installation ; échoue si la
+      # version n'a pas sa section dans le journal des modifications
+      # Bêta : « Nouveau dans cette bêta » d'après le journal de la bêta précédente : son commit du code est noté en
+      # bas de sa page (commentaire caché, après « --- » : l'appli n'affiche que ce qui est avant)
+      - name: Notes de version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$BETA" = true ]; then
+            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease)][0].body // empty' | grep -oE 'source: [0-9a-f]{40}' | cut -d' ' -f2 || true)
+            [ -n "$prev" ] && { git show "$prev:CHANGELOG.md" > prev-changelog.md || rm -f prev-changelog.md; }
+          fi
+          node scripts/release-notes.mjs "$RELEASE_TAG" prev-changelog.md > release-notes.md
+          printf '\n---\n<!-- source: %s -->\n' "$SOURCE_SHA" >> release-notes.md
+          cat release-notes.md
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -la dist
+      - name: Release
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Paddock Live ${{ env.RELEASE_TAG }}${{ env.BETA == 'true' && ' (bêta)' || '' }}
+          target_commitish: ${{ github.sha }}
+          # Bêta : pré-version, jamais « la dernière version » (celle des mises à jour de tout le monde)
+          prerelease: ${{ env.BETA == 'true' }}
+          make_latest: ${{ env.BETA == 'true' && 'false' || 'true' }}
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+          body_path: release-notes.md
+      # Copie sur Cloudflare (R2) : téléchargements et mises à jour bien plus rapides en Europe (/dl/… du
+      # serveur). Version retirée pendant la copie : le serveur renvoie vers GitHub tant qu'elle n'est pas
+      # finie (ou si elle échoue, sans bloquer la publication sur GitHub)
+      - name: Copie des fichiers sur Cloudflare
+        if: env.BETA != 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::warning::Pas de jeton Cloudflare : fichiers sur GitHub seulement"; exit 0; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          W="npx --yes wrangler@4.159.0 r2 object"
+          v="${RELEASE_TAG#v}"
+          $W delete paddock-live-media/releases/version --remote || true
+          for f in dist/*.exe dist/*.dmg dist/*.zip dist/*.AppImage dist/*.deb; do
+            n=$(basename "$f")
+            $W put "paddock-live-media/releases/${n#Paddock-Live-$v-}" --file "$f" --remote
+          done
+          printf '%s' "$v" > version.txt
+          $W put paddock-live-media/releases/version --file version.txt --remote
+      # Catalogue Windows (winget) : nouvelle version envoyée à microsoft/winget-pkgs, une fois la première version
+      # acceptée et le jeton WINGET_TOKEN ajouté aux secrets du dépôt (docs/CATALOGUES.md) ; sinon rien
+      - name: Catalogue winget
+        if: env.BETA != 'true' && env.WINGET_TOKEN != ''
+        continue-on-error: true
+        uses: vedantmgoyal9/winget-releaser@b7370d4d152efdce803a26cc6ca9eee58cb2ad54 # v2
+        with:
+          identifier: PaddockLive.PaddockLive
+          release-tag: ${{ env.RELEASE_TAG }}
+          installers-regex: '-x64-win\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
+      # Page du dépôt public (README, captures, journal, guide, licences) recopiée du code de la version finale
+      - name: Page du dépôt à jour
+        if: env.BETA != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone -q --depth=1 "https://x-access-token:${GH_TOKEN}@github.com/$GITHUB_REPOSITORY.git" vitrine
+          for f in README.md LICENSE analytics/LICENSE CHANGELOG.md docs/GUIDE.md docs/screenshots public/icon-512.png; do
+            rm -rf "vitrine/$f"; mkdir -p "vitrine/$(dirname "$f")"; cp -R "$f" "vitrine/$f"
+          done
+          cd vitrine
+          git add -A
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -qm "Page du dépôt : version $RELEASE_TAG" || exit 0
+          git push -q origin HEAD
+      # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées. Versions finales : les 10 dernières
+      # gardées, page GitHub et tag git (téléchargements et mises à jour prennent la dernière). Puis tags v… restés
+      # sans page (anciennes versions d'avant cette règle) effacés
+      - name: Anciennes versions effacées
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$BETA" = true ]; then
+            q='[.[] | select(.prerelease)] | sort_by(.created_at) | reverse | .[3:] | .[].tag_name'
+          else
+            q="[.[] | select(.prerelease and (.tag_name | startswith(\"$RELEASE_TAG-\")))] | .[].tag_name"
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "$q" | while read -r t; do
+            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done
+          gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[10:] | .[].tagName' | while read -r t; do
+            [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done
+          pages=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name')
+          [ -n "$pages" ] && gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" --paginate --jq '.[].name' | grep '^v' | grep -vxF "$pages" | while read -r t; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$t" > /dev/null && echo "Tag effacé : $t"
+          done
