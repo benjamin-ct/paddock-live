@@ -195,7 +195,7 @@ Tests : `npm test`.
 
 ## Licence
 
-© 2026 Paddock Live. L'application est sous **[licence MIT](LICENSE)** ; le serveur et le Studio (dossier `analytics/`) sont sous **[licence AGPL v3](analytics/LICENSE)**. Les bibliothèques incluses gardent leur propre licence (indiquée en tête de leurs fichiers).
+© 2026 Paddock Live. L'application est distribuée sous **[licence MIT](LICENSE)** ; le serveur et le Studio sont sous **[licence AGPL v3](analytics/LICENSE)**. Le code source n'est pas publié en ligne. Les bibliothèques incluses gardent leur propre licence (indiquée en tête de leurs fichiers).
 
 Le nom « Paddock Live » et le logo ne sont pas couverts par ces licences : ils ne peuvent pas être utilisés pour une copie ou une version modifiée sans accord.
 
