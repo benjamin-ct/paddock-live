@@ -4,12 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → À propos → Nouveautés).
 
-## v2.0.0 — à venir
+## v1.34.0 — 2026-11-20
 
 ### Nouvelle navigation
 - Paddock Live change de visage : une barre à gauche (Accueil, Saison, Actu, Replays, Documents FIA) et une barre en
   haut, avec un menu ⋮ pour le reste (Soutenir, Documentation, réseaux). Les réglages s'ouvrent en grande fenêtre ;
-  une section modifiée est signalée et peut être remise à zéro.
+  une section modifiée est signalée et peut être remise à zéro. À gauche, chaque rubrique des réglages liste ses
+  sections en sous-menu : un clic y amène directement.
 - Le direct s'ouvre dans sa propre fenêtre, tout seul au début d'une séance (une fois ; réglage pour le couper). La
   fenêtre principale garde l'accueil et les pages. Fermer la fenêtre du direct arrête le replay qui tournait.
 - Tableau de bord : « Que suivre ? » et « Quoi de neuf » (les nouveautés de la dernière version), avec un raccourci vers
@@ -21,14 +22,24 @@ l'application (Réglages → À propos → Nouveautés).
 - Version web : la même navigation, adaptée au téléphone (onglets en bas).
 - Menu ⋮ : les réseaux de Paddock Live avec leur logo (Instagram, TikTok, YouTube, X, Bluesky). Soutenir Paddock Live
   passe maintenant par Patreon (chaque mois) ou Buy Me a Coffee (un café), chacun avec son logo.
+- Premier lancement : « Je découvre » (le direct avec l'essentiel : classement, circuit et radios) ou « Je veux tout ».
+  Le mode simple se change dans Réglages → Disposition, et « Tout afficher » au-dessus des panneaux remet tout d'un clic.
+
+### Portugais et allemand
+- Paddock Live parle portugais (du Brésil) et allemand : toute l'interface, l'écran de démarrage, les noms des Grands
+  Prix et des séances, le calendrier à ajouter à son agenda et les alertes de la version web. Choix dans Réglages →
+  Général → Langue ; à la première ouverture, la langue de l'ordinateur ou du téléphone est prise toute seule.
+- La langue se choisit aussi sur l'accueil du premier lancement, et dans la version web (menu ⋮, ou « Plus » sur le
+  téléphone), qui n'en proposait pas.
+- Radios traduites en portugais aussi (l'allemand était déjà proposé).
 
 ### Pages
 - Carte de la F1 (barre de gauche ; version web : app.paddocklive.app/carte/) : chaque Grand Prix d'une saison sur la carte du monde, avec la photo du vainqueur aux couleurs
   de son écurie, de 1950 à aujourd'hui (frise des saisons). Un Grand Prix choisi montre le vainqueur, le logo de son
   écurie et sa voiture de la saison ; photos libres de Wikimedia Commons pour les saisons passées, auteur et licence
-  indiqués. Le vainqueur d'une course de moins de 72 h reste masqué. Recherche d'un pilote, d'un circuit ou d'une écurie
-  (toutes ses victoires, un clic pour y aller) et liste des champions du monde depuis 1950. Bouton « PNG » : la carte en image à
-  partager (année, champion, vainqueurs aux couleurs de leur écurie).
+  indiqués. Le vainqueur d'une course pas encore vue reste masqué. Recherche d'une saison (année, ou « 199 » pour les
+  années 1990), d'un pilote, d'un circuit ou d'une écurie (toutes ses victoires, un clic pour y aller) et liste des champions du monde depuis 1950. Bouton « PNG » : la carte en image à
+  partager : le monde entier, quelle que soit la vue à l'écran (année, champion, vainqueurs aux couleurs de leur écurie).
 - Archives (barre de gauche ; version web : app.paddocklive.app/archives/) : toutes les saisons depuis 1950, une carte par saison groupée par décennie,
   avec le champion du monde et sa photo, son écurie, la voiture et l'écurie championne des constructeurs. Une saison
   récente ouvre sa page Saison, une plus ancienne la Carte de la F1 à cette année. Avant, « Archives » ouvrait
@@ -46,9 +57,17 @@ l'application (Réglages → À propos → Nouveautés).
   d'office.
 - Dépannage : radios, documents et journal de l'appli au même endroit.
 - Pilote du jour : carte animée et image à partager (page Grand Prix, sur demande).
+- Page Grand Prix : carte « Jalons du week-end » avant la première séance du prochain Grand Prix : les pilotes qui
+  peuvent atteindre un chiffre rond (départ n° 400, victoire n° 25, podium n° 100…), d'après leur carrière. Les
+  sprints ne sont pas comptés ; rien ne s'affiche une fois le week-end commencé.
+- Version web : « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre la page Résultats de
+  l'appli au lieu du top 10 : podium, remontées, stratégies, classement complet (grille, écarts, tours, arrêts, pneus,
+  meilleur tour ; Q1, Q2, Q3 en qualifs) et chiffres de la dernière séance, essais compris.
+- Version web, page Grand Prix : chaque séance terminée du week-end (essais, qualifications, sprint, course) a son
+  bouton « Résultats », qui ouvre cette page Résultats pour elle, sans replay. Le résultat reste masqué jusqu'au clic.
 
 ### F2, F3 et F1 Academy en direct
-- Replays → « F2 · F3 · Academy » : suivre en direct les séances de ces séries avec le chronométrage officiel de la
+- Direct (écran « Pas de séance en direct ») → Formule 2, Formule 3, F1 Academy : suivre en direct les séances de ces séries avec le chronométrage officiel de la
   FIA (sans compte) : classement, écarts, secteurs, drapeaux, météo, temps restant et commentaires (en anglais), avec
   le délai TV. Les voitures sont placées sur la carte d'après leurs secteurs (pas de GPS, de radios, de pneus ni de
   télémétrie dans ces chronos). Le badge du direct indique la série suivie (« LIVE · F2 ») ; « Revenir au direct F1 »
@@ -63,6 +82,14 @@ l'application (Réglages → À propos → Nouveautés).
   course finissait maintenant ») : points de la place de chaque pilote au barème de la série, meilleur tour compris.
 - Chaque séance suivie en direct est enregistrée, comme en F1 : elle se revoit dans Replays → Mes enregistrements
   (« Formule 2 · Lusail Sprint Race »).
+
+### Salon entre amis
+- Onglet Salon, à côté de Direction de course (et puce « Salon » du Fil de course) : pendant une séance, ton groupe de
+  pronostics en ligne réagit, discute et pronostique ensemble, sans spoiler. Chaque réaction, message ou pronostic
+  s'affiche chez chacun au moment où il le voit à sa TV, d'après son propre délai ; en replay, au même moment de la
+  séance. Six réactions en un clic, un message court, et un pronostic (vainqueur, pole ou meilleur temps) marqué juste
+  ou raté à l'arrivée. Une bulle signale les envois des amis quand le salon n'est pas affiché (la cloche la coupe), une
+  pastille sur l'onglet compte ceux pas encore lus. Même pseudo que les pronostics ; appli et version web.
 
 ### Direct
 - Onglet Bagarres : une pastille donne le nombre de bagarres en cours (pilotes à moins de 1,5 s), comme pour les
@@ -87,8 +114,15 @@ l'application (Réglages → À propos → Nouveautés).
 - « Ouvrir des fenêtres » : des fenêtres par thème, plusieurs d'un coup, ou un seul onglet dans sa fenêtre ; bouton
   « Toujours au premier plan » sur les fenêtres de panneau ; la carte ouverte à part peut devenir flottante.
 - Barre du bas du direct : délai TV à gauche, options à droite, Commentaires.
+- Marque-pages : la touche B (ou « Marquer cet instant » dans la palette de commandes) marque l'instant que tu
+  regardes, en direct comme en replay. Dans le replay de la séance, Moments → « Mes moments » y ramène en un clic
+  (quelques secondes avant), avec un repère sur la barre de lecture ; la croix retire un instant. Gardés sur ton
+  appareil.
 
 ### Analyse et données
+- Images PNG toujours à la même taille, quel que soit l'écran : graphiques de la Saison et de l'Analyse, Carte de la F1 et photo de
+  la Carte 3D en 4K (3840 × 2160) ; images à partager (chiffres d'une course, bilan de la saison, pilote du jour) en
+  2160 × 2700, le format portrait des réseaux en deux fois plus net.
 - Analyse → Secteurs : vue « Classements », un classement par secteur et par point de vitesse.
 - Écarts (Race Trace) : seulement les 10 ou 20 derniers tours.
 - Stratégie : jeux de pneus déjà utilisés hachurés, relais en cours marqué.
@@ -97,18 +131,67 @@ l'application (Réglages → À propos → Nouveautés).
 - Limites de piste : le détail de chaque avertissement au survol (tour, virage, temps, heure).
 - Météo : prévision de pluie des 6 prochaines heures au circuit, par quart d'heure.
 - Classement : meilleur temps de chaque secteur sous le dernier (réglage).
+- Simulateur d'arrêt : l'arrêt se prévoit « dans N tours » (jusqu'à 7), avec le rythme et l'usure des pneus de chacun.
+  « Quand s'arrêter ? » montre tour par tour la place à la sortie et si l'undercut sur la voiture de devant passe (en
+  vert : ressort devant elle si elle s'arrête 3 tours plus tard), avec les pneus neufs. Un clic sur un tour le choisit.
+  C'est une estimation : sans trafic ni tour de sortie plus lent.
 
 ### Carte 3D
+- Nouveau rendu « Plan » (bouton Plan de la vue 3D) : le circuit posé sur le vrai plan de ses alentours, vu en
+  perspective comme une carte de navigation, avec les rues, les parcs, l'eau et les bâtiments en relief
+  (OpenStreetMap), en tons de nuit (de jour en apparence claire). La piste a sa vraie largeur, ses vibreurs et sa ligne
+  d'arrivée en damier. Les voitures ont les mêmes pastilles que sur la carte du circuit (trigramme, position, anneau du
+  pilote suivi ; une pastille touchée devient le pilote suivi), et la direction de course s'y voit comme sur la carte :
+  piste rouge au drapeau rouge, orangée sous voiture de sécurité (en pointillés sous VSC), secteurs sous drapeau jaune
+  (le double jaune clignote) avec leur fanion, voiture de sécurité devant le leader, incidents et limites de piste aux
+  virages, numéros des virages. À Las Vegas, la Sphère est en volume, avec son écran qui réagit à la course (la Terre aux
+  couleurs du leader, drapeaux, damier à l'arrivée). On zoome, tourne et penche le plan à la souris ou aux doigts ;
+  « Suivre » garde le pilote suivi au centre, « Tout le circuit » le remontre en entier et « Maquette » ramène la vue 3D
+  habituelle. Le dernier rendu choisi est gardé.
+- Plan : en zoomant, les bâtiments prennent leurs façades : fenêtres des maisons, bandeaux lumineux des immeubles, tours
+  de verre sombres à larges bandes de lumière la nuit (reflets bleutés le jour), avec une teinte propre à chaque hôtel
+  (chaude, froide ou verte), sous un toit uni ; le pied des murs est dans l'ombre. Dans la Maquette, les murs gagnent
+  de près des meneaux aux fenêtres, la tranche de chaque étage et le grain du béton, et les tours de verre leurs
+  vitres en mur-rideau.
+- Plan de nuit : un halo de lumière bleuté borde la piste (rouge ou orangé sous drapeau rouge ou voiture de sécurité),
+  et le ciel s'étoile quand on penche le plan vers l'horizon.
+- Plan : les noms des rues et des hôtels, des attractions et des stades s'affichent en zoomant, discrets, et les
+  passerelles piétonnes (celles de la Strip, de Marina Bay…) sont en volume au-dessus des rues, avec leur garde-corps de
+  verre, au lieu d'être posées à plat.
+- Monuments en volume, dans le Plan comme dans la Maquette, à leur vraie place : à Las Vegas la tour Eiffel (dorée la
+  nuit, son phare qui tourne), le ballon de Paris, la grande roue High Roller (jante et cabines allumées, cabines qui
+  tournent), les jets d'eau des fontaines du Bellagio (qui dansent, retombent en brume et montent tous ensemble en
+  finale), le campanile du Venetian, la tour de la Stratosphere (ses trois jambes, son feu rouge qui clignote) et la
+  pyramide du Luxor (arêtes dorées, rayon de lumière la nuit) ; à Singapour le Flyer et les dômes de l'Esplanade,
+  hérissés de leurs aiguilles ; à Montréal la Biosphère et la Grande Roue du Vieux-Port ; à Bakou les trois Flame
+  Towers (leurs écrans de LED font monter des flammes la nuit) ; à Abou Dabi l'hôtel Yas Viceroy, ses deux tours et sa
+  résille de LED aux couleurs changeantes au-dessus de la piste ; à Austin la tour d'observation du circuit ; à Suzuka
+  la grande roue du parc. Ils remplacent les blocs ou les « marches d'escalier » qu'OpenStreetMap dessinait à leur
+  place. Ils sont aussi tournés dans le bon sens dans la Maquette.
+- Plus de monuments : à Las Vegas les grandes enseignes lumineuses de la Strip (Aria, MGM Grand, New York-New York,
+  Park MGM, Cosmopolitan, Bellagio, Caesars, Flamingo, Planet Hollywood, Excalibur, Venetian : des panneaux de LED aux
+  dégradés de couleur, à des places estimées, sans lettres ni logos) et l'hôtel guitare du Hard Rock (en projet, sur le
+  site du Mirage : sa silhouette de guitare aux bandeaux et aux cordes lumineuses) ; à Monaco le casino de Monte-Carlo
+  (ses deux tours aux toits de cuivre, ses fenêtres allumées la nuit) et les yachts du port Hercule, rangés à quai, avec
+  leur feu de mât la nuit ; à Bakou la Tour de la Vierge ; à Miami le Hard Rock Stadium (cuvette ovale, toit blanc,
+  gradins turquoise et orange, anneau de LED la nuit).
+- Plan : des arbres, conifères, feuillus et palmiers (selon le climat du circuit : surtout des palmiers à Las Vegas et à
+  Abou Dabi), posés aux mêmes endroits que dans la Maquette, et à Las Vegas, Abou Dabi, Miami, Djeddah, Qatar et Bahreïn
+  des palmiers alignés le long des grandes avenues (la Strip en a quatre rangées).
 - Rendu plus réaliste : l'asphalte a du grain, des raccords et une bande de gomme sur la trajectoire (à la corde dans
   les virages), avec des traces de pneus ; les vibreurs sont usés, l'herbe, les graviers et les dégagements ont leur
   matière, les murs en béton leurs joints et leurs salissures, les rails leurs ondes. Les immeubles ont des fenêtres le
   jour aussi (elles ne se voyaient qu'allumées, la nuit). Tout est dessiné par l'appli, rien à télécharger ; textures
   plus fines en qualité Haute, couleurs unies comme avant en Économe.
 - Monaco : les voitures passent sous les immeubles qui couvrent la piste (le tunnel) au lieu de les traverser.
+  Ailleurs, plus d'immeuble qui flotte au-dessus de la piste : un bâtiment mal placé sur elle est retiré.
 - Moins de pelouse : sur les circuits en ville (Monaco, Singapour, Las Vegas, Bakou, Djeddah, Miami), chaussée et
   trottoirs autour de la piste. Partout, les quartiers bâtis sont pavés, l'herbe est moins vive, une route de service
   fait le tour du circuit derrière les tribunes, des voitures sont garées dans les parkings, les arbres sont de deux
   sortes et les toits ont leurs dalles.
+- Encore moins de pelouse sur les circuits permanents : au-delà d'une centaine de mètres de la piste, des champs (blé,
+  chaume, labours, foin) et de la terre au lieu d'un grand tapis vert ; la bande d'herbe autour de la piste est deux fois
+  moins large, l'herbe du loin est plus terne, et la route de service est bordée de terre battue et de gravier.
 - Au bord de la piste : panneaux de freinage 150, 100 et 50 m avant les gros freinages, murs de pneus rouges et blancs
   à l'extérieur des virages serrés, portiques au-dessus des lignes droites, fanions au vent sur les tribunes. Les feux
   des commissaires s'allument en jaune dans un secteur sous drapeau jaune et sous voiture de sécurité, en rouge sous
@@ -116,9 +199,10 @@ l'application (Réglages → À propos → Nouveautés).
 - Effets : étincelles sous les voitures à pleine vitesse, poussière quand une voiture sort de la piste, flashs des
   appareils photo dans les tribunes la nuit, feu de pluie qui clignote sur piste mouillée. Détails et effets absents en
   qualité Économe (sauf le feu de pluie).
-- Las Vegas : la Sphère est là, et son écran réagit à la course. Elle prend les couleurs de l'écurie du leader avec
-  « P1 » et son trigramme, passe au jaune sous drapeau jaune, clignote avec « SC » ou « VSC » sous voiture de sécurité,
-  devient rouge sous drapeau rouge, verte quand la piste est de nouveau libre, et affiche le damier à l'arrivée.
+- Las Vegas : la Sphère est là, et son écran réagit à la course. Elle montre la Terre qui tourne, aux couleurs de
+  l'écurie du leader, avec « P1 » et son trigramme, passe au jaune sous drapeau jaune, clignote avec « SC » ou « VSC »
+  sous voiture de sécurité, devient rouge sous drapeau rouge, verte quand la piste est de nouveau libre, et affiche le
+  damier à l'arrivée.
 - Public : les spectateurs bougent et se lèvent au passage de la voiture suivie ; des groupes de spectateurs debout
   autour du circuit, derrière les grillages. Écrans géants au bout des tribunes, avec les cinq premiers du classement.
 - Caméra Embarquée sous la pluie : des gouttes se posent sur la visière et filent vers les bords avec la vitesse.
@@ -172,8 +256,9 @@ l'application (Réglages → À propos → Nouveautés).
   virages.
 - Voie des stands : chaque écurie a son garage (porte et bandeau à sa couleur, dessinés aussi sur le vrai bâtiment des
   stands quand la carte des alentours le connaît) et son emplacement peint au sol, placés là où ses voitures s'arrêtent
-  vraiment dès qu'un arrêt a été vu. En course, la voiture est levée sur ses crics et ses roues sont démontées le
-  temps de l'arrêt.
+  vraiment dès qu'un arrêt a été vu. En course, la voiture est levée sur ses crics dès qu'elle s'arrête (les pneus
+  quittent le sol) ; chaque roue est tirée vers l'extérieur et emportée, puis la neuve est remise en place avant que
+  la voiture reparte.
 - Lumière qui s'adapte sous un toit (tunnel, pont, bâtiment au-dessus de la piste), de jour : l'image s'assombrit en
   entrant puis l'œil s'habitue, avec un instant d'éblouissement à la sortie. Pas avec les animations réduites.
 - Sphère de Las Vegas : son bandeau donne aussi le tour en cours (« P1 NOR · 12/57 ») et, à l'arrivée, les trois
@@ -191,8 +276,103 @@ l'application (Réglages → À propos → Nouveautés).
 ### Réglages
 - Carte : taille des voitures et images par seconde.
 - Accessibilité : une couleur au choix pour une écurie, partout dans l'appli.
+- Anti-spoiler : un réglage pour toute l'appli (Réglages → Affichage → Anti-spoiler, trouvé en cherchant « spoiler » ou
+  « masquer »), le même que celui de l'Actu ; coupé, rien n'est masqué, ni dans les replays.
+- Favoris synchronisés entre l'appli de bureau et la version web : « Synchroniser mes favoris » (carte Mes favoris de
+  l'accueil, Réglages → Alertes) crée un code d'appairage, à taper sur l'autre appareil (sans compte). Les pilotes et
+  écuries favoris des deux appareils sont réunis, puis chaque changement est repris des deux côtés.
+- Séances suivies : l'appli note les séances que tu regardes (direct ou replay) et le temps passé, sur ton appareil
+  seulement, rien n'est envoyé. Le total est dans Réglages → Application → Séances suivies, avec un bouton pour
+  l'effacer.
+- Saison → Bilan, « Ta saison » : les séances que tu as suivies (temps en direct et en replay, Grand Prix le plus
+  suivi), la saison de ton pilote favori et tes points aux pronostics (place dans ton groupe, poles et places du podium
+  justes), avec une image « Ma saison » à copier ou enregistrer pour la partager. Le bouton « Revivre ma saison » la
+  raconte en plein écran, page après page, chiffres qui défilent et couleurs de l'écurie de ton favori.
 
 ### Corrections
+- Pneus en apparence claire : les lettres du medium et de l'intermédiaire se lisent mieux (couleurs plus foncées), et
+  Saison → Rythme de course montre les pneus médium et dur, qui étaient presque invisibles sur fond blanc.
+- Version web : chaque page a son adresse (/direct/, /grand-prix/, /calendrier/, /documents-fia/, /depannage/), à
+  mettre en favori ou à partager ; la page rechargée reste sur la même page et le bouton Retour du navigateur revient à
+  la page d'avant (l'adresse restait toujours « / »).
+- Chaque page s'ouvre en haut : la page Saison ne s'ouvre plus au milieu de la liste, titre caché sous la barre du
+  haut, et une page ne garde plus le défilement de sa visite précédente.
+- Jeu du jour (barre latérale) : le jeu s'ouvre sur le site sans changer la page affichée (le tableau de bord la
+  remplaçait alors que le menu restait sur « Jeu du jour »).
+- Menu ⋮ → Apparence : le choix (automatique, sombre, clair) s'ouvre sous le bouton ⋮, et plus dans le coin en haut à
+  gauche de la fenêtre.
+- Temps au tour écrits partout de la même façon (« 1:23.456 », comme dans le classement) : la Saison les écrivait avec
+  une virgule.
+- Page Grand Prix : le temps avant la prochaine séance est arrondi vers le bas, comme le compte à rebours du tableau de
+  bord (« Dans 4 j » quand il reste 4 j 14 h, au lieu de « Dans 5 j »).
+- Saison → Régularité : les écarts entre pilotes se voient (un pilote très irrégulier tassait les barres de tous les
+  autres) et chaque pilote affiche son écart avec le plus régulier.
+- Replays : les boutons « Analyser » ont un libellé lu par les lecteurs d'écran (séance concernée), et les images du
+  site ont un texte alternatif.
+- Lecteurs d'écran : les messages de l'appli sont lus à voix haute, alertes de course comprises (voiture de sécurité,
+  drapeau rouge, meilleur tour, pluie…), même avec les réglages ouverts ; l'onglet ou la rubrique ouverts sont annoncés
+  (panneaux du direct, Saison, Replays, Actu, Réglages, onglets du téléphone), et les pages Saison, Replays et Actu
+  ont un titre principal.
+- Simulateur d'arrêt : plus de pilote oublié dans le classement après l'arrêt ; les écarts sont ceux du classement et du
+  Duel (São Paulo : NOR annoncé P5 alors que VER, 10 s derrière, devait passer devant).
+- Mes enregistrements : « GP de São Paulo » s'écrit avec son « ã » (il disparaissait), et la liste prend toute la page
+  au lieu d'une petite boîte de quatre lignes.
+- Appli relancée alors qu'elle est déjà ouverte (raccourci, menu Démarrer) : la dernière fenêtre utilisée revient
+  devant, sans changer de vue (en plein replay, le tableau de bord passait devant). « Direct » et « Revoir » ramènent
+  toujours la fenêtre du direct, même réduite.
+- Replay lancé hors séance : l'en-tête montre la séance rejouée, plus la longueur, l'heure et la météo prévue du
+  prochain Grand Prix (Las Vegas dans un replay de São Paulo).
+- Replay : changer de vitesse garde la position affichée (avec le délai TV, passer de 1x à 10x reculait de près de
+  deux minutes).
+- Replay : la croix de la barre de replay ramène à la page Replays quand le replay y a été lancé, au lieu de l'écran
+  « Pas de séance en direct ».
+- Replay incomplet (archive de la course de Mexico, coupée par la F1 au tour 57, ou enregistrement d'une séance quittée
+  avant la fin) : la barre de replay le dit à la fin, au lieu d'un état de fin qui semblait faux.
+- Radios et direction de course : « Avant départ » pour tout ce qui précède le départ de la course, au lieu de « Tour 1 ».
+- « Analyser » des Replays : la fenêtre Analyse ouverte pour l'occasion se ferme à la fin du replay (elle restait vide,
+  sur l'autre écran). « Ouvrir des fenêtres » montre celles qui sont déjà ouvertes.
+- Raccourcis du clavier (P, S, M, C, D, flèches) : ils ne marchent plus que sur le tableau de bord, jamais pendant
+  qu'une page (Accueil, Saison, Règlement, Actu, Replays…) ou une fenêtre est ouverte (taper « drapeau » sur la page
+  Règlement mettait le direct en pause). Chaque changement du délai TV au clavier s'affiche, et la reprise après une
+  pause donne le nouveau délai et celui d'avant.
+- Réglages → Compte F1 TV : une seule date quand la connexion se renouvelle toute seule (celle de la session
+  formula1.com), et un seul bouton selon l'état : « Se connecter » ou « Se déconnecter ».
+- Réglages : Échap ferme la fenêtre même quand la recherche a le curseur, et Ctrl+K ouvre la palette de commandes
+  depuis les Réglages.
+- Mode daltonien : les flèches des places gagnées et perdues (classements, mini-classement, bilans) passent en bleu et
+  orange au lieu du vert et du rouge.
+- Lumières connectées, simulation à l'écran : le bouton d'essai d'une couleur l'affiche bien 3 secondes, au-dessus de
+  la fenêtre Réglages.
+- Streaming : les adresses du Stream Deck contiennent une clé propre à l'ordinateur, et les commandes sans elle sont
+  refusées (un autre programme ou une page web pouvait changer le délai ou mettre le replay en pause). Recopie les
+  adresses depuis Réglages → Streaming. Les overlays ne montrent plus d'erreur dans leur console.
+- Réglages → Application : « Vérifier maintenant » annonce le résultat avec l'heure de la vérification.
+- Dépannage : l'écran et la zone visible sont rangés sous « Détails techniques » (toujours copiés avec les
+  informations).
+- Appli de bureau : la fenêtre d'enregistrement de la sauvegarde s'appelle « Enregistrer les réglages », et les
+  questions de confirmation portent le nom « Paddock Live ».
+- Tutoiement partout : les textes de l'appli et de la version web qui vouvoyaient (« Vous avez la dernière version »,
+  « Vos pilotes favoris », « Reconnectez-vous »…) tutoient comme le reste, dans les six langues.
+- Pronostics : sans groupe, l'explication passe avant le formulaire de création, et le rappel « Pronostic pas encore
+  fait » dans les réglages des alertes précise qu'il demande un groupe de pronostics. La page web des pronostics
+  (paddocklive.app/p/) a un lien de retour vers le site et vers « Mes groupes ».
+- Pneus : les composés choisis par Pirelli pour Las Vegas et Abou Dabi (C3, C4, C5) et le Qatar (C1, C2, C3) sont dans
+  l'appli, avec leur source.
+- Accueil, « Voir les résultats » (appli de bureau et version web, sur ordinateur) : le bouton ouvre de nouveau les
+  résultats de la dernière séance (l'accueil se rouvrait aussitôt par-dessus et rien ne se passait).
+- Saison → Calendrier : le globe vole toujours jusqu'au circuit du prochain Grand Prix (le vol pouvait ne pas partir
+  quand la page était redessinée), et le plan des rues se recharge tout seul quand une tuile se perd (avant, le tracé
+  restait seul sur un fond noir).
+- Saison → Archives : chaque carte montre la photo du champion du monde, y compris pour 2021–2025 (une photo de
+  voiture ne s'affichait que là où la photo officielle manquait).
+- Saison, menu (téléphone) : toucher un groupe (Technique, Jeux…) le déplie, au lieu de refermer le menu et de
+  redessiner la page.
+- Saison → Sanctions, permis à points : chaque pilote avec son écurie actuelle (points pris la saison d'avant dans une
+  autre écurie : Bortoleto apparaissait avec le logo de Kick Sauber au lieu d'Audi).
+- Saison → Classements, « Bilan de la saison » : noms des pilotes sur deux rangées en quinconce, lisibles (ils se
+  chevauchaient).
+- Téléphone et tablette (version web, iPhone surtout) : plus de zoom automatique de la page en touchant un champ (recherche,
+  listes, réglages, questions) ; tous les champs de saisie font au moins 16 pixels sur un écran tactile.
 - Carte de la F1 sur téléphone : le menu de la Saison passe au-dessus de la carte (champion, recherche, frise et cartes
   des Grands Prix ne le recouvrent plus).
 - Documents FIA (version web) : les onglets des saisons passées (2025, 2024, 2023) se chargent de nouveau.
@@ -224,9 +404,18 @@ l'application (Réglages → À propos → Nouveautés).
   ouvrait parfois le navigateur).
 - Dispositions enregistrées : la fenêtre du direct y est comptée et remise à sa place, sans être rechargée ; la mise en
   place automatique d'une séance se fait dans la fenêtre du direct.
-- Anti-spoiler : une seule règle pour l'accueil, l'Actu et les alertes d'actualité. Pendant une séance, un replay et
-  72 h après une course ou un sprint, les titres d'actualités sont masqués (aussi dans « Dernières actus » de l'accueil)
-  et leurs alertes attendent ; un seul « Afficher » dévoile tout.
+- Anti-spoiler : une seule règle pour l'accueil, la Saison, la Carte de la F1, l'Actu et les alertes d'actualité.
+  Pendant une séance, un replay et après une course ou un sprint pas encore vus, les titres d'actualités sont masqués
+  (aussi dans « Dernières actus » de l'accueil) et leurs alertes attendent ; un seul « Afficher » dévoile tout.
+- Anti-spoiler : un résultat masqué ne se voit plus ailleurs. Tant que la dernière course ou le dernier sprint ne sont
+  pas marqués comme vus (« Afficher », « Voir les résultats » ; 7 jours au plus, au lieu de 72 h), l'accueil cache aussi
+  les favoris, les éléments moteur et la course au titre, et la Saison (fiches des pilotes, classements, course au titre,
+  bilan de la saison…) demande d'abord « Afficher les résultats ». Le choix est gardé après un redémarrage, et la
+  carte « Dernière séance » ne dit « résultat masqué » que quand il l'est vraiment.
+- Replays sans spoiler : les moments clés, les drapeaux et les reprises de la barre de lecture n'apparaissent qu'une fois
+  atteints (la frise montrait toute la course dès le départ, et la liste annonçait « Abandon T33 » ou « Pénalité T42 ») ;
+  « Montrer la suite de la séance », dans les moments clés, affiche tout. « Analyser » demande toujours confirmation
+  avant d'ouvrir une séance à la fin (avant : sur écran tactile seulement).
 - Accueil : une carte masquée (classements, arrêts, dégâts…) n'ouvre plus la Saison avec le résultat ; un premier clic
   affiche les résultats, un second ouvre la Saison.
 - Direct : un message inattendu de la F1 ne fige plus le direct pendant une minute (surtout sans F1 TV).
@@ -414,6 +603,31 @@ l'application (Réglages → À propos → Nouveautés).
 - L'appli se repose quand il n'y a rien à animer : la carte, le simulateur d'arrêt et la comparaison ne tournent plus
   que lorsqu'ils sont à l'écran (sans séance, environ trois fois moins de travail pour l'ordinateur, donc moins de
   batterie et de ventilateur).
+- Championnat projeté : un pilote absent de la liste de la séance s'affiche avec son code et son écurie (d'après le
+  classement de la saison), et non plus avec son seul numéro.
+- Un même Grand Prix porte le même nom partout : les Replays et la barre du haut reprennent celui de la Saison et de la
+  version web (« Grand Prix du Brésil », « Grand Prix de Bahreïn en Malaisie »), et les essais d'hiver ne sont plus
+  appelés « Grand Prix de Pre-Season Testing ». Les écuries aussi : « Red Bull », « Haas », « Racing Bulls » dans le
+  classement, le duel, le championnat projeté et les overlays, comme dans la Saison.
+- Villes et pays en français : Montréal, Barcelone, Mexico, « Brésil » dans la barre du haut, la Saison, la page Grand
+  Prix, les Replays et la météo ; le titre de la fenêtre donne le nom du Grand Prix en français.
+- Météo du week-end : une prévision par jour de séance, dans le même fuseau que le programme (le dimanche de la course
+  n'avait pas de météo quand le circuit est loin, comme à Las Vegas).
+- « Quoi de neuf » du tableau de bord : les nouveautés de la version installée (une bêta montre celles de sa version),
+  avec le même numéro que dans les réglages ; traduit dans la langue de l'interface. Plus de point en double dans « Vous
+  avez la dernière version (…). · version installée ».
+- Actualités : un même sujet repris par plusieurs sites avec le même texte n'apparaît plus qu'une fois, aussi dans les
+  « Dernières actus » de l'accueil.
+- Bilan de la saison : « vainqueurs différents (hors sprints) », avec la liste des vainqueurs au survol.
+- Archives : chaque saison montre la voiture du champion cette année-là (Benetton pour Schumacher en 1994 et 1995), au
+  lieu de la même photo pour toutes ses saisons.
+- Interface en anglais : « Hungary », « Brazil » au lieu de « Hungarian », « Brazilian » sur les cartes ; « Français »
+  n'est plus traduit dans la liste des langues des radios.
+- Traductions : motifs des pénalités en français dans les moments clés (« retour en piste dangereux » au lieu de «
+  rejoining unsafely ») ; documents FIA titrés en français, le titre officiel dessous, avec plus de motifs traduits
+  (changement d'éléments moteur…) ; le PDF s'ouvre avec le nom de son fichier au lieu de « fia-pdf ».
+- Jeu du jour : le menu dit « Jeu du jour » et l'onglet du navigateur donne le jeu du jour (« Devine le pilote »…).
+- Site : il annonce les six langues de l'appli, et plus seulement le français et l'anglais.
 
 ### Divers
 - Direct plus léger : bagarres, télémétrie, pneus et arrêts ne sont plus redessinés quand rien ne change ni quand leur
@@ -458,6 +672,9 @@ l'application (Réglages → À propos → Nouveautés).
   rouge, voie des stands, sanctions, parc fermé, aérodynamique active et énergie, moteur, voiture, écuries et budget),
   en français, anglais, italien et espagnol. Recherche dans les règles, et chaque point renvoie à son article dans le
   PDF officiel de la FIA, ouvert à la bonne page.
+- Règlement plus facile à lire : chaque thème est un bandeau (icône, numéro, résumé, nombre de points) qui se déplie
+  d'un clic, chaque règle une carte, les textes longs en courtes phrases à puces et les chiffres (durées, distances,
+  barèmes de points) en évidence. La recherche déplie les thèmes qui ont des résultats.
 - Grille 2027 : un baquet sans annonce officielle montre son pilote quand le pilote lui-même ou le dirigeant de
   l'écurie dit qu'il est sous contrat (Hamilton, Hülkenberg, Bortoleto, Bottas) : « sous contrat d'après… », avec
   la date et le lien. Le baquet reste « à confirmer » tant que l'écurie ne l'a pas annoncé.
