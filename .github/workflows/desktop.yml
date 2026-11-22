@@ -1,4 +1,7 @@
 name: Application de bureau
+# Nom de chaque lancement : branche du code et version (lu par le panneau, analytics/suivi.js, runRef : une bêta de
+# develop, une correction urgente sur sa branche et une publication sur main tournent sans se bloquer)
+run-name: "Application de bureau · ${{ inputs.ref }} · ${{ inputs.release_tag || 'essai' }}"
 
 # Workflow du dépôt PUBLIC benjamin-ct/paddock-live (versions, page GitHub). Sa source est gardée dans le dépôt privé
 # du code (benjamin-ct/paddock-live-dev, dossier depot-public/) : le modifier là, puis le recopier ici. Compiler dans
