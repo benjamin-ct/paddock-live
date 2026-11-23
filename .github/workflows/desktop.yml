@@ -203,7 +203,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$BETA" = true ]; then
-            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease and (.draft | not))][0].body // empty' | grep -oE 'source: [0-9a-f]{40}' | cut -d' ' -f2 || true)
+            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease and (.draft | not))] | sort_by(.published_at) | last | .body // empty' | grep -oE 'source: [0-9a-f]{40}' | cut -d' ' -f2 || true)
             [ -n "$prev" ] && { git show "$prev:CHANGELOG.md" > prev-changelog.md || rm -f prev-changelog.md; }
           fi
           node scripts/release-notes.mjs "$RELEASE_TAG" prev-changelog.md > release-notes.md
@@ -281,7 +281,8 @@ jobs:
           git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -qm "Page du dépôt : version $RELEASE_TAG" || exit 0
           git push -q origin HEAD
-      # Bêtas : les 3 dernières gardées ; version finale : ses bêtas effacées. Versions finales : les 10 dernières
+      # Bêtas : les 3 dernières gardées (rangées par date de publication : created_at est la date du commit du workflow,
+      # la même pour toutes les bêtas faites avec un même workflow) ; version finale : ses bêtas effacées. Versions finales : les 10 dernières
       # gardées, page GitHub et tag git (téléchargements et mises à jour prennent la dernière). Puis tags v… restés
       # sans page (anciennes versions d'avant cette règle) effacés
       - name: Anciennes versions effacées
@@ -290,15 +291,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$BETA" = true ]; then
-            q='[.[] | select(.prerelease)] | sort_by(.created_at) | reverse | .[3:] | .[].tag_name'
+            q='[.[] | select(.prerelease and (.draft | not))] | sort_by(.published_at) | reverse | .[3:] | .[].tag_name'
           else
             q="[.[] | select(.prerelease and (.tag_name | startswith(\"$RELEASE_TAG-\")))] | .[].tag_name"
           fi
           gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "$q" | while read -r t; do
             [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done
-          gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName,createdAt \
-            --jq 'sort_by(.createdAt) | reverse | .[10:] | .[].tagName' | while read -r t; do
+          gh release list --repo "$GITHUB_REPOSITORY" --exclude-pre-releases --exclude-drafts --limit 1000 --json tagName,publishedAt \
+            --jq 'sort_by(.publishedAt) | reverse | .[10:] | .[].tagName' | while read -r t; do
             [ -n "$t" ] && gh release delete "$t" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done
           pages=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name')
