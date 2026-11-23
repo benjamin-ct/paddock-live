@@ -1,0 +1,8 @@
+{
+  "name": "paddock-live-outils-publication",
+  "private": true,
+  "description": "Outils du workflow « Application de bureau » du dépôt public (copie R2 des fichiers d'une version), recopiés dans son dossier outils/ avec le workflow : versions figées par package-lock.json, installées avec npm ci.",
+  "dependencies": {
+    "wrangler": "4.159.0"
+  }
+}
