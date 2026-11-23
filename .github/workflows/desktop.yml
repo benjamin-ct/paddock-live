@@ -84,9 +84,10 @@ jobs:
           if [ "$beta" = true ]; then
             head=$(grep -m1 -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md)
             if echo "$head" | grep -q 'à venir'; then
-              # Numéro suivant la dernière bêta de cette version : beta.1, beta.2…
+              # Numéro suivant la dernière bêta publiée de cette version : beta.1, beta.2… (brouillon resté d'un essai raté :
+              # pas compté, son numéro est repris et le brouillon remplacé à la publication)
               v=$(echo "$head" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
-              n=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[].tag_name | select(startswith(\"$v-beta.\")) | ltrimstr(\"$v-beta.\") | tonumber] | max // 0")
+              n=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq "[.[] | select(.draft | not) | .tag_name | select(startswith(\"$v-beta.\")) | ltrimstr(\"$v-beta.\") | tonumber] | max // 0")
               tag="$v-beta.$((n + 1))"
             else
               echo "::warning::Pas de version « à venir » en tête de CHANGELOG.md : pas de bêta"
@@ -202,7 +203,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$BETA" = true ]; then
-            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease)][0].body // empty' | grep -oE 'source: [0-9a-f]{40}' | cut -d' ' -f2 || true)
+            prev=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" --jq '[.[] | select(.prerelease and (.draft | not))][0].body // empty' | grep -oE 'source: [0-9a-f]{40}' | cut -d' ' -f2 || true)
             [ -n "$prev" ] && { git show "$prev:CHANGELOG.md" > prev-changelog.md || rm -f prev-changelog.md; }
           fi
           node scripts/release-notes.mjs "$RELEASE_TAG" prev-changelog.md > release-notes.md
@@ -213,22 +214,26 @@ jobs:
           path: dist
           merge-multiple: true
       - run: ls -la dist
-      - name: Release
-        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: Paddock Live ${{ env.RELEASE_TAG }}${{ env.BETA == 'true' && ' (bêta)' || '' }}
-          target_commitish: ${{ github.sha }}
+      # Releases immuables (Settings → General → Releases) : une version publiée ne peut plus recevoir de fichier. Elle
+      # est donc créée en brouillon (invisible des applis et du site), reçoit tous ses fichiers, puis est publiée en une
+      # fois. Le brouillon d'un essai raté pour ce numéro est effacé d'abord. Fichiers envoyés par github-actions[bot]
+      # (jeton du workflow), comme avant : le Worker ne signe que ceux-là.
+      - name: Release (brouillon, fichiers, puis publication)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.draft and .tag_name == \"$RELEASE_TAG\") | .id" | while read -r id; do
+            [ -n "$id" ] && gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" && echo "Brouillon d'un essai précédent effacé ($id)"
+          done
+          title="Paddock Live $RELEASE_TAG"
           # Bêta : pré-version, jamais « la dernière version » (celle des mises à jour de tout le monde)
-          prerelease: ${{ env.BETA == 'true' }}
-          make_latest: ${{ env.BETA == 'true' && 'false' || 'true' }}
-          files: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
-            dist/*.AppImage
-            dist/*.deb
-          body_path: release-notes.md
+          if [ "$BETA" = true ]; then title="$title (bêta)"; kind=(--prerelease); latest=--latest=false; else kind=(); latest=--latest; fi
+          shopt -s nullglob
+          files=(dist/*.exe dist/*.dmg dist/*.zip dist/*.AppImage dist/*.deb)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::Aucun fichier à publier dans dist/"; exit 1; }
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft "${kind[@]}" --title "$title" \
+            --target "$GITHUB_SHA" --notes-file release-notes.md "${files[@]}"
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false "${kind[@]}" "$latest"
       # Copie sur Cloudflare (R2) : téléchargements et mises à jour bien plus rapides en Europe (/dl/… du
       # serveur). Version retirée pendant la copie : le serveur renvoie vers GitHub tant qu'elle n'est pas
       # finie (ou si elle échoue, sans bloquer la publication sur GitHub)
